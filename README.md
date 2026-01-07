@@ -3,37 +3,36 @@
 [![npm](https://img.shields.io/npm/v/@mattzh72/lodestone.svg?style=flat-square)](https://www.npmjs.com/package/@mattzh72/lodestone)
 [![MIT License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
-Lodestone is a small TypeScript library for programmatic rendering of Minecraft structures in the browser or in headless environments.
+A TypeScript library for rendering Minecraft structures in the browser or headless environments.
 
 ![Demo](assets/demo.gif)
 
-It provides:
-- A Three.js renderer: `ThreeStructureRenderer`
-- A lightweight WebGL renderer: `StructureRenderer`
-- Core data types (`Structure`, `BlockState`, `Identifier`) and utilities for meshing Minecraft block models
+## Why Lodestone?
 
-Repository: https://github.com/mattzh72/lodestone
+Build interactive Minecraft structure viewers, schematic editors, world previews, or any web-based Minecraft visualization tool. Lodestone handles the complexity of parsing Minecraft's block models, assembling meshes, and rendering them efficiently with Three.js—so you can focus on your application.
 
 ## Features
 
-- Render Minecraft block models (resource-pack driven)
-- Load and render `.litematic` files (Litematica schematic format)
-- Chunked meshing + basic culling, transparency, emissive flags
-- Works in browsers; can be used headlessly with a WebGL-capable runtime
+- **Litematic file support** — Load and render `.litematic` schematic files (Litematica mod format)
+- **Flexible rendering** — Choose between `ThreeStructureRenderer` (full-featured) or `StructureRenderer` (lightweight WebGL)
+- **Resource pack system** — Works with the built-in default pack or your own custom resource packs
+- **Advanced rendering** — Chunked meshing with occlusion culling, transparency sorting, and emissive block support
+- **Universal runtime** — Runs in browsers and headless environments with WebGL
+- **Full type safety** — Written in TypeScript with complete type definitions
 
-## Install
+## Installation
 
 ```bash
 npm install @mattzh72/lodestone
 ```
 
-`three` is a peer dependency. Many package managers (npm v7+) will install it automatically; if you don’t have it already:
+Three.js is a peer dependency. Most package managers (npm v7+) install it automatically:
 
 ```bash
 npm install three
 ```
 
-## Quick start (default pack)
+## Quick Start
 
 ```ts
 import { Structure, ThreeStructureRenderer, loadDefaultPackResources } from '@mattzh72/lodestone'
@@ -53,11 +52,13 @@ mat4.translate(view, view, [0, 0, -5])
 renderer.drawStructure(view)
 ```
 
-For a more complete example (including item rendering and controls), see `demo/main.ts`.
+For a complete example with item rendering and controls, see `demo/main.ts`.
 
-## Loading Litematic files
+## Usage
 
-Lodestone can load and render `.litematic` files (Minecraft schematic format used by Litematica mod):
+### Loading Litematic Files
+
+Lodestone can load `.litematic` files (the schematic format used by Litematica mod):
 
 ```ts
 import { LitematicLoader, ThreeStructureRenderer, loadDefaultPackResources } from '@mattzh72/lodestone'
@@ -76,42 +77,28 @@ const { resources } = await loadDefaultPackResources()
 const renderer = new ThreeStructureRenderer(canvas, structure, resources)
 ```
 
-The loader handles:
-- Gzip-compressed NBT parsing
-- Variable-width bit-packed block state arrays
-- Block palettes and properties
-- Multiple regions (loads first region by default)
+The loader handles gzip-compressed NBT parsing, variable-width bit-packed block state arrays, block palettes and properties, and multiple regions (loads first region by default).
 
-## Demo
-
-Run the local demo:
-
-```bash
-npm install
-npm run demo
-```
-
-## CDN (UMD)
+### CDN Usage (UMD)
 
 Load Three.js first, then Lodestone. The UMD bundle exposes `window.Lodestone`.
 
-Pinned (recommended for reproducible builds):
+**Pinned version** (recommended for reproducible builds):
 
 ```html
 <script src="https://unpkg.com/three@0.164.1/build/three.min.js"></script>
 <script src="https://unpkg.com/@mattzh72/lodestone@0.2.2/dist/lodestone.umd.cjs"></script>
 <script>
-  // Load the built-in default pack from unpkg:
-  // https://unpkg.com/@mattzh72/lodestone@0.2.2/assets/default-pack/
+  // Load the built-in default pack from unpkg
   (async () => {
     const baseUrl = 'https://unpkg.com/@mattzh72/lodestone@0.2.2/assets/default-pack/'
     const { resources } = await Lodestone.loadDefaultPackResources({ baseUrl })
-    // ...use `resources` with `ThreeStructureRenderer`
+    // ...use resources with ThreeStructureRenderer
   })()
 </script>
 ```
 
-Or `@latest` (convenient, but can change underneath you):
+**Latest version** (convenient but may change):
 
 ```html
 <script src="https://unpkg.com/three@0.164.1/build/three.min.js"></script>
@@ -121,26 +108,34 @@ Or `@latest` (convenient, but can change underneath you):
 </script>
 ```
 
-## Resources (what you supply)
+### Custom Resource Packs
 
-If you want to use your own resource pack instead of the built-in default pack, you provide a `Resources` object that can answer:
-- block definitions (`blockstates/*.json`)
-- block models (`models/*.json`)
-- a texture atlas (`ImageData`) and UV lookup
-- simple per-block flags (opaque / transparent / emissive, etc.)
+To use your own resource pack instead of the built-in default, provide a `Resources` object with:
 
-The `demo/` folder shows one concrete way to load these inputs.
+- Block definitions (`blockstates/*.json`)
+- Block models (`models/*.json`)
+- Texture atlas (`ImageData`) and UV lookup
+- Block flags (opaque, transparent, emissive)
+
+See the `demo/` folder for a concrete implementation example.
+
+## Development
+
+Run the local demo:
+
+```bash
+npm install
+npm run demo
+```
 
 ## Contributing
 
-Issues and PRs are welcome: https://github.com/mattzh72/lodestone/issues
+Issues and pull requests are welcome! Visit the [issue tracker](https://github.com/mattzh72/lodestone/issues) to report bugs or suggest features.
 
 ## License
 
-MIT. Lodestone includes upstream MIT-licensed code from Misode (deepslate).
+MIT. Lodestone includes upstream MIT-licensed code from [Misode](https://github.com/misode/deepslate).
 
----
+## Acknowledgments
 
-Made with ❤️ in San Francisco.
-
-Special thanks to [deepslate](https://github.com/misode/deepslate) - Lodestone is an optimized, Three.js-native version of their work.
+Special thanks to [deepslate](https://github.com/misode/deepslate)—Lodestone is an optimized, Three.js-native version of their work.
