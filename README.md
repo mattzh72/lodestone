@@ -99,12 +99,12 @@ Pinned (recommended for reproducible builds):
 
 ```html
 <script src="https://unpkg.com/three@0.164.1/build/three.min.js"></script>
-<script src="https://unpkg.com/@mattzh72/lodestone@0.1.0/dist/lodestone.umd.cjs"></script>
+<script src="https://unpkg.com/@mattzh72/lodestone@0.2.2/dist/lodestone.umd.cjs"></script>
 <script>
   // Load the built-in default pack from unpkg:
-  // https://unpkg.com/@mattzh72/lodestone@0.1.0/assets/default-pack/
+  // https://unpkg.com/@mattzh72/lodestone@0.2.2/assets/default-pack/
   (async () => {
-    const baseUrl = 'https://unpkg.com/@mattzh72/lodestone@0.1.0/assets/default-pack/'
+    const baseUrl = 'https://unpkg.com/@mattzh72/lodestone@0.2.2/assets/default-pack/'
     const { resources } = await Lodestone.loadDefaultPackResources({ baseUrl })
     // ...use `resources` with `ThreeStructureRenderer`
   })()
