@@ -1,5 +1,5 @@
 import { mat4, vec3 } from 'gl-matrix'
-import { Structure, ThreeStructureRenderer, loadDefaultPackResources } from '../src/index.js'
+import { Structure, ThreeStructureRenderer, loadDefaultPackResources, LitematicLoader } from '../src/index.js'
 
 type TimePreset = 'night' | 'day' | 'dusk'
 
@@ -171,103 +171,10 @@ class OrbitCamera {
 	}
 }
 
-type BuildResult = { structure: Structure, blockCount: number }
-
-function fillBox(structure: Structure, from: vec3, to: vec3, block: string, props?: Record<string, string>) {
-	for (let x = from[0]; x < to[0]; x += 1) {
-		for (let y = from[1]; y < to[1]; y += 1) {
-			for (let z = from[2]; z < to[2]; z += 1) {
-				structure.addBlock([x, y, z], block, props)
-			}
-		}
-	}
-}
-
-function buildScene(seed: number): BuildResult {
-	const size: vec3 = [48, 20, 48]
-	const structure = new Structure([size[0], size[1], size[2]])
-	let count = 0
-
-	const add = (pos: vec3, block: string, props?: Record<string, string>) => {
-		structure.addBlock(pos, block, props)
-		count += 1
-	}
-
-	// Ground
-	fillBox(structure, [0, 0, 0], [size[0], 1, size[2]], 'minecraft:sand')
-	count += size[0] * size[2]
-
-	// Platform
-	fillBox(structure, [6, 1, 6], [42, 3, 42], 'minecraft:sandstone')
-	count += (42 - 6) * (42 - 6) * 2
-
-	// Trim border
-	for (let x = 6; x < 42; x += 1) {
-		add([x, 3, 6], 'minecraft:cut_sandstone')
-		add([x, 3, 41], 'minecraft:cut_sandstone')
-	}
-	for (let z = 6; z < 42; z += 1) {
-		add([6, 3, z], 'minecraft:cut_sandstone')
-		add([41, 3, z], 'minecraft:cut_sandstone')
-	}
-
-	// Pillars
-	const pillarPositions: vec3[] = [
-		[12, 4, 12],
-		[36, 4, 12],
-		[12, 4, 36],
-		[36, 4, 36],
-	]
-	pillarPositions.forEach(pos => {
-		fillBox(structure, pos, [pos[0] + 2, pos[1] + 6, pos[2] + 2], 'minecraft:smooth_sandstone')
-		count += 2 * 6 * 2
-	})
-
-	// Roof
-	fillBox(structure, [10, 10, 10], [38, 12, 38], 'minecraft:smooth_sandstone')
-	count += (38 - 10) * (38 - 10) * 2
-
-	// Center altar
-	fillBox(structure, [22, 4, 22], [26, 6, 26], 'minecraft:chiseled_sandstone')
-	count += 4 * 2 * 4
-
-	// Pool
-	fillBox(structure, [16, 2, 16], [32, 3, 32], 'minecraft:water')
-	count += (32 - 16) * (32 - 16)
-
-	// Lanterns
-	const lanterns: vec3[] = [
-		[9, 4, 9],
-		[38, 4, 9],
-		[9, 4, 38],
-		[38, 4, 38],
-	]
-	lanterns.forEach(pos => add(pos, 'minecraft:glowstone'))
-
-	// Accent stairs
-	for (let i = 0; i < 4; i += 1) {
-		const offset = 2 + i
-		add([24, 3 + i, offset], 'minecraft:sandstone_stairs', { facing: 'south', half: 'bottom', shape: 'straight', waterlogged: 'false' })
-		add([24, 3 + i, 47 - offset], 'minecraft:sandstone_stairs', { facing: 'north', half: 'bottom', shape: 'straight', waterlogged: 'false' })
-		add([offset, 3 + i, 24], 'minecraft:sandstone_stairs', { facing: 'east', half: 'bottom', shape: 'straight', waterlogged: 'false' })
-		add([47 - offset, 3 + i, 24], 'minecraft:sandstone_stairs', { facing: 'west', half: 'bottom', shape: 'straight', waterlogged: 'false' })
-	}
-
-	// Scatter a few cacti for contrast
-	const random = (value: number) => {
-		const next = (Math.sin(value + seed) * 10000) % 1
-		return next - Math.floor(next)
-	}
-	for (let i = 0; i < 6; i += 1) {
-		const x = 8 + Math.floor(random(i) * 32)
-		const z = 8 + Math.floor(random(i + 12) * 32)
-		add([x, 1, z], 'minecraft:cactus', { age: '0' })
-		if (random(i + 24) > 0.55) {
-			add([x, 2, z], 'minecraft:cactus', { age: '0' })
-		}
-	}
-
-	return { structure, blockCount: count }
+async function loadLitematic(): Promise<Structure> {
+	const response = await fetch(new URL('./public/dark-fortress.litematic', import.meta.url).toString())
+	const buffer = await response.arrayBuffer()
+	return LitematicLoader.load(new Uint8Array(buffer))
 }
 
 async function runDemo() {
@@ -303,16 +210,16 @@ async function runDemo() {
 		resizeRenderer()
 	}
 
-	const rebuildScene = (seed: number) => {
-		const result = buildScene(seed)
-		structure = result.structure
-		blockCountEl.textContent = result.blockCount.toLocaleString()
-		const center = vec3.fromValues(result.structure.getSize()[0] / 2, 5, result.structure.getSize()[2] / 2)
+	const loadScene = async () => {
+		structure = await loadLitematic()
+		blockCountEl.textContent = structure.getBlocks().length.toLocaleString()
+		const size = structure.getSize()
+		const center = vec3.fromValues(size[0] / 2, size[1] / 3, size[2] / 2)
 		camera = new OrbitCamera(canvas, center)
 		createRenderer(timePreset)
 	}
 
-	rebuildScene(Date.now() % 10000)
+	await loadScene()
 
 	const renderLoop = () => {
 		if (!renderer || !camera) return
@@ -334,11 +241,6 @@ async function runDemo() {
 			document.querySelectorAll<HTMLButtonElement>('button[data-time]').forEach(btn => btn.classList.toggle('active', btn === button))
 			createRenderer(timePreset)
 		})
-	})
-
-	const regenButton = document.getElementById('regen') as HTMLButtonElement | null
-	regenButton?.addEventListener('click', () => {
-		rebuildScene(Date.now() % 10000)
 	})
 }
 

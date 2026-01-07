@@ -1,4 +1,5 @@
 export * from './core/index.js'
+export * from './litematic/index.js'
 export * from './math/index.js'
 export * from './nbt/index.js'
 export * from './packs/default.js'
