@@ -5,6 +5,8 @@
 
 Lodestone is a small TypeScript library for programmatic rendering of Minecraft structures in the browser or in headless environments.
 
+![Demo](assets/demo.gif)
+
 It provides:
 - A Three.js renderer: `ThreeStructureRenderer`
 - A lightweight WebGL renderer: `StructureRenderer`
@@ -15,6 +17,7 @@ Repository: https://github.com/mattzh72/lodestone
 ## Features
 
 - Render Minecraft block models (resource-pack driven)
+- Load and render `.litematic` files (Litematica schematic format)
 - Chunked meshing + basic culling, transparency, emissive flags
 - Works in browsers; can be used headlessly with a WebGL-capable runtime
 
@@ -51,6 +54,33 @@ renderer.drawStructure(view)
 ```
 
 For a more complete example (including item rendering and controls), see `demo/main.ts`.
+
+## Loading Litematic files
+
+Lodestone can load and render `.litematic` files (Minecraft schematic format used by Litematica mod):
+
+```ts
+import { LitematicLoader, ThreeStructureRenderer, loadDefaultPackResources } from '@mattzh72/lodestone'
+
+// Load litematic file
+const response = await fetch('path/to/build.litematic')
+const buffer = await response.arrayBuffer()
+const structure = LitematicLoader.load(new Uint8Array(buffer))
+
+// Get metadata
+const metadata = LitematicLoader.getMetadata(new Uint8Array(buffer))
+console.log(metadata.name, metadata.author, metadata.totalBlocks)
+
+// Render it
+const { resources } = await loadDefaultPackResources()
+const renderer = new ThreeStructureRenderer(canvas, structure, resources)
+```
+
+The loader handles:
+- Gzip-compressed NBT parsing
+- Variable-width bit-packed block state arrays
+- Block palettes and properties
+- Multiple regions (loads first region by default)
 
 ## Demo
 
@@ -108,3 +138,9 @@ Issues and PRs are welcome: https://github.com/mattzh72/lodestone/issues
 ## License
 
 MIT. Lodestone includes upstream MIT-licensed code from Misode (deepslate).
+
+---
+
+Made with ❤️ in San Francisco.
+
+Special thanks to [deepslate](https://github.com/misode/deepslate) - Lodestone is an optimized, Three.js-native version of their work.

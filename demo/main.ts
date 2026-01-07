@@ -157,7 +157,7 @@ class OrbitCamera {
 		})
 		canvas.addEventListener('wheel', evt => {
 			evt.preventDefault()
-			this.distance = Math.max(8, Math.min(90, this.distance + evt.deltaY * 0.02))
+			this.distance = Math.max(5, Math.min(400, this.distance + evt.deltaY * 0.08))
 		}, { passive: false })
 	}
 
@@ -185,7 +185,7 @@ async function runDemo() {
 	const baseUrl = new URL('./default-pack/', import.meta.url).toString()
 	const { resources } = await loadDefaultPackResources({ baseUrl })
 
-	let timePreset: TimePreset = 'night'
+	let timePreset: TimePreset = 'day'
 	let renderer: ThreeStructureRenderer | null = null
 	let camera: OrbitCamera | null = null
 	let structure: Structure | null = null
@@ -203,7 +203,7 @@ async function runDemo() {
 		renderer?.dispose()
 		renderer = new ThreeStructureRenderer(canvas, structure, resources, {
 			chunkSize: 16,
-			drawDistance: 160,
+			drawDistance: 1000,
 			useInvisibleBlockBuffer: false,
 			sunlight: SUNLIGHT_PRESETS[preset],
 		})
