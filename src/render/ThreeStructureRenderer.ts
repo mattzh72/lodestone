@@ -509,7 +509,7 @@ export class ThreeStructureRenderer {
 
 	public setViewport(x: number, y: number, width: number, height: number) {
 		this.renderer.setViewport(x, y, width, height)
-		this.renderer.setSize(width, height, true)
+		this.renderer.setSize(width, height, false)
 		this.camera.aspect = width / Math.max(height, 1)
 		this.camera.updateProjectionMatrix()
 		// Resize post-processing targets
