@@ -25,13 +25,13 @@ export namespace Json {
 			: undefined
 	}
 
-	export function readArray<T>(obj: JsonValue | undefined, parser: (obj?: JsonValue) => T): T[] | undefined
+	export function readArray<T>(obj: JsonValue | undefined, parser: (obj: JsonValue | undefined) => T): T[] | undefined
 	export function readArray(obj: JsonValue | undefined): (JsonValue | undefined)[] | undefined
-	export function readArray<T>(obj: unknown, parser: (obj: unknown) => T): T[] | undefined
-	export function readArray<T>(obj: unknown, parser?: (obj: unknown) => T) {
+	export function readArray<T>(obj: unknown, parser: (obj: JsonValue | undefined) => T): T[] | undefined
+	export function readArray<T>(obj: unknown, parser?: (obj: JsonValue | undefined) => T) {
 		if (!Array.isArray(obj)) return undefined
-		if (!parser) return obj
-		return obj.map(el => parser(el))
+		if (!parser) return obj as (JsonValue | undefined)[]
+		return obj.map(el => parser(el as JsonValue | undefined))
 	}
 
 	export function readPair<T>(obj: unknown, parser: (obj?: unknown) => T): [T, T] | undefined {
@@ -39,11 +39,11 @@ export namespace Json {
 		return [0, 1].map((i => parser(obj[i]))) as [T, T]
 	}
 
-	export function readMap<T>(obj: JsonValue | undefined, parser: (obj?: JsonValue) => T): { [x: string]: T }
-	export function readMap<T>(obj: unknown, parser: (obj: unknown) => T): { [x: string]: T }
-	export function readMap<T>(obj: unknown, parser: (obj: unknown) => T) {
+	export function readMap<T>(obj: JsonValue | undefined, parser: (obj: JsonValue | undefined) => T): { [x: string]: T }
+	export function readMap<T>(obj: unknown, parser: (obj: JsonValue | undefined) => T): { [x: string]: T }
+	export function readMap<T>(obj: unknown, parser: (obj: JsonValue | undefined) => T) {
 		const root = readObject(obj) ?? {}
-		return Object.fromEntries(Object.entries(root).map(([k, v]) => [k, parser(v)]))
+		return Object.fromEntries(Object.entries(root).map(([k, v]) => [k, parser(v as JsonValue | undefined)]))
 	}
 
 	export function compose<T, U>(obj: unknown, parser: ((obj: unknown) => T | undefined), mapper: (result: T) => U) {

@@ -3,7 +3,7 @@ import { glMatrix, mat4, vec3 } from 'gl-matrix'
 import type { Direction } from '../core/index.js'
 import { Identifier } from '../core/index.js'
 import { Vector } from '../math/index.js'
-import type { Color } from '../util/index.js'
+import { Json, type Color } from '../util/index.js'
 import type { Cull } from './Cull.js'
 import { Mesh } from './Mesh.js'
 import { Quad } from './Quad.js'
@@ -21,7 +21,7 @@ type BlockModelFace = {
 	tintindex?: number,
 }
 
-type BlockModelElement = {
+export type BlockModelElement = {
 	from: number[],
 	to: number[],
 	rotation?: {
@@ -281,8 +281,15 @@ export class BlockModel {
 	}
 
 	public static fromJson(data: unknown) {
-		const obj = data as { parent?: unknown, textures?: unknown, elements?: unknown, display?: unknown }
-		const parent = obj.parent === undefined ? undefined : Identifier.parse(obj.parent)
-		return new BlockModel(parent, obj.textures, obj.elements, obj.display)
+		const root = Json.readObject(data) ?? {}
+		const parentId = Json.readString(root.parent)
+		const parent = parentId ? Identifier.parse(parentId) : undefined
+		const texturesRoot = Json.readObject(root.textures)
+		const textures = texturesRoot ? Json.readMap(texturesRoot, value => Json.readString(value) ?? '') : undefined
+		const elements = Json.readArray(root.elements, element => Json.readObject(element) ?? {})
+			?.map(el => el as BlockModelElement)
+		const display = Json.readObject(root.display) as BlockModelDisplay | undefined
+		const guiLight = Json.readString(root.gui_light) as BlockModelGuiLight | undefined
+		return new BlockModel(parent, textures, elements, display, guiLight)
 	}
 }

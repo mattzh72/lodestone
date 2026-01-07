@@ -1,5 +1,6 @@
 import { glMatrix, mat4 } from 'gl-matrix'
 import { Identifier } from '../core/index.js'
+import { Json } from '../util/index.js'
 import { BlockColors } from './BlockColors.js'
 import type { BlockModelProvider } from './BlockModel.js'
 import { Cull } from './Cull.js'
@@ -26,6 +27,45 @@ type ModelMultiPartCondition = {
 type ModelMultiPart = {
 	when?: ModelMultiPartCondition,
 	apply: ModelVariantEntry,
+}
+
+function readModelVariant(obj: unknown): ModelVariant & { weight?: number } {
+	const root = Json.readObject(obj) ?? {}
+	const model = Json.readString(root.model) ?? ''
+	const variant: ModelVariant & { weight?: number } = { model }
+	const x = Json.readNumber(root.x)
+	if (x !== undefined) variant.x = x
+	const y = Json.readNumber(root.y)
+	if (y !== undefined) variant.y = y
+	const uvlock = Json.readBoolean(root.uvlock)
+	if (uvlock !== undefined) variant.uvlock = uvlock
+	const weight = Json.readNumber(root.weight)
+	if (weight !== undefined) variant.weight = weight
+	return variant
+}
+
+function readModelVariantEntry(obj: unknown): ModelVariantEntry {
+	const list = Json.readArray(obj, readModelVariant)
+	if (list) return list
+	return readModelVariant(obj)
+}
+
+function readMultiPartCondition(obj: unknown): ModelMultiPartCondition | undefined {
+	const root = Json.readObject(obj)
+	if (!root) return undefined
+	const orList = Json.readArray(root.OR, readMultiPartCondition)
+	if (orList) {
+		const filtered = orList.flatMap(condition => condition ? [condition] : [])
+		if (filtered.length > 0) return { OR: filtered }
+	}
+	return Object.fromEntries(Object.entries(root).map(([key, value]) => [key, Json.readString(value) ?? '']))
+}
+
+function readMultiPart(obj: unknown): ModelMultiPart {
+	const root = Json.readObject(obj) ?? {}
+	const apply = readModelVariantEntry(root.apply)
+	const when = readMultiPartCondition(root.when)
+	return when ? { when, apply } : { apply }
 }
 
 export interface BlockDefinitionProvider {
@@ -99,7 +139,12 @@ export class BlockDefinition {
 	}
 
 	public static fromJson(data: unknown) {
-		const obj = data as { variants?: unknown, multipart?: unknown }
-		return new BlockDefinition(obj.variants, obj.multipart)
+		const root = Json.readObject(data) ?? {}
+		const variantsRoot = Json.readObject(root.variants)
+		const variants = variantsRoot
+			? Object.fromEntries(Object.entries(variantsRoot).map(([key, value]) => [key, readModelVariantEntry(value)]))
+			: undefined
+		const multipart = Json.readArray(root.multipart, readMultiPart)
+		return new BlockDefinition(variants, multipart)
 	}
 }

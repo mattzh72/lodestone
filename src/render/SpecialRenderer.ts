@@ -5,7 +5,7 @@ import type { NbtCompound, NbtList } from '../nbt/index.js'
 import { NbtType } from '../nbt/index.js'
 import { Color } from '../util/index.js'
 import { BlockColors } from './BlockColors.js'
-import { BlockModel } from './BlockModel.js'
+import { BlockModel, type BlockModelElement } from './BlockModel.js'
 import { Cull } from './Cull.js'
 import { Mesh } from './Mesh.js'
 import type { TextureAtlasProvider } from './TextureAtlas.js'
@@ -617,7 +617,7 @@ export namespace SpecialRenderers {
 		}
 	}
 
-	const bannerFace = (index: number) => ({
+	const bannerFace = (index: number): BlockModelElement['faces'] => ({
 		north: {uv: [0.25, 0.25, 5.25, 10.25], texture: `#${index}`, tintindex: index},
 		east: {uv: [0, 0.25, 0.25, 10.25], texture: `#${index}`, tintindex: index},
 		south: {uv: [5.5, 0.25, 10.5, 10.25], texture: `#${index}`, tintindex: index},
@@ -626,7 +626,7 @@ export namespace SpecialRenderers {
 		down: {uv: [10.25, 0, 5.25, 0.25], texture: `#${index}`, tintindex: index},
 	})
 
-	function createBannerRenderer(color: string, config: { base: unknown[], pattern: (index: number) => unknown }) {
+	function createBannerRenderer(color: string, config: { base: BlockModelElement[], pattern: (index: number) => BlockModelElement }) {
 		return (atlas: TextureAtlasProvider, patterns?: NbtList<NbtCompound>) => {
 			const textures: { [key: string]: string } = { 0: 'entity/banner_base' }
 			const elements = [...config.base]
