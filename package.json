@@ -27,6 +27,7 @@
   "files": [
     "lib/**",
     "dist/**",
+    "assets/**",
     "LICENSE",
     "README.md",
     "!**/*.tsbuildinfo"

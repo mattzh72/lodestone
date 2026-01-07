@@ -1,68 +1,110 @@
-# lodestone
+# Lodestone
 
-Rendering and core utilities for programmatic Minecraft scenes (Three.js + WebGL).
+[![npm](https://img.shields.io/npm/v/@mattzh72/lodestone.svg?style=flat-square)](https://www.npmjs.com/package/@mattzh72/lodestone)
+[![MIT License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
-This is a focused fork of Misode's deepslate that keeps core/rendering functionality and trims worldgen.
+Lodestone is a small TypeScript library for programmatic rendering of Minecraft structures in the browser or in headless environments.
+
+It provides:
+- A Three.js renderer: `ThreeStructureRenderer`
+- A lightweight WebGL renderer: `StructureRenderer`
+- Core data types (`Structure`, `BlockState`, `Identifier`) and utilities for meshing Minecraft block models
 
 Repository: https://github.com/mattzh72/lodestone
+
+## Features
+
+- Render Minecraft block models (resource-pack driven)
+- Chunked meshing + basic culling, transparency, emissive flags
+- Works in browsers; can be used headlessly with a WebGL-capable runtime
 
 ## Install
 
 ```bash
-npm install @mattzh72/lodestone three
+npm install @mattzh72/lodestone
 ```
 
-## CDN (UMD)
+`three` is a peer dependency. Many package managers (npm v7+) will install it automatically; if you don’t have it already:
 
-```html
-<script src="https://unpkg.com/three@0.164.1/build/three.min.js"></script>
-<script src="https://unpkg.com/@mattzh72/lodestone@0.1.0/dist/lodestone.umd.cjs"></script>
+```bash
+npm install three
 ```
 
-The UMD bundle exposes `window.Lodestone`.
-
-## Quick Start
+## Quick start (default pack)
 
 ```ts
-import { BlockDefinition, BlockModel, Structure, TextureAtlas, ThreeStructureRenderer } from '@mattzh72/lodestone'
+import { Structure, ThreeStructureRenderer, loadDefaultPackResources } from '@mattzh72/lodestone'
 import { mat4 } from 'gl-matrix'
+
+const { resources } = await loadDefaultPackResources()
 
 const structure = new Structure([4, 3, 4])
 structure.addBlock([0, 0, 3], 'minecraft:stone')
 structure.addBlock([0, 1, 3], 'minecraft:cactus', { age: '1' })
 
-// Resources: provide block definitions/models and an atlas.
-const resources = {
-  getBlockDefinition: (id) => blockDefinitions[id.toString()] ?? null,
-  getBlockModel: (id) => blockModels[id.toString()] ?? null,
-  getTextureAtlas: () => textureAtlas.getTextureAtlas(),
-  getTextureUV: (id) => textureAtlas.getTextureUV(id),
-  getPixelSize: () => textureAtlas.getPixelSize(),
-  getBlockFlags: () => ({ opaque: true }),
-  getBlockProperties: () => null,
-  getDefaultBlockProperties: () => null,
-}
-
-const renderer = new ThreeStructureRenderer(canvas, structure, resources, {
-  chunkSize: 16,
-  drawDistance: 256,
-})
+const renderer = new ThreeStructureRenderer(canvas, structure, resources)
+renderer.setViewport(0, 0, canvas.width, canvas.height)
 
 const view = mat4.create()
 mat4.translate(view, view, [0, 0, -5])
 renderer.drawStructure(view)
 ```
 
-## Resources Notes
+For a more complete example (including item rendering and controls), see `demo/main.ts`.
 
-- `TextureAtlas.fromBlobs()` and `TextureAtlas.empty()` use the DOM; in Node, build an `ImageData` via `canvas` and use `new TextureAtlas(imageData, uvMap)`.
-- `three` is a peer dependency. If you use the UMD bundle, load Three.js first and access `window.Lodestone`.
+## Demo
 
-## Rendering Caveats
+Run the local demo:
 
-- Texture atlases must be power-of-two dimensions.
-- Very large meshes may require WebGL2 or the `OES_element_index_uint` extension for 32-bit indices.
+```bash
+npm install
+npm run demo
+```
+
+## CDN (UMD)
+
+Load Three.js first, then Lodestone. The UMD bundle exposes `window.Lodestone`.
+
+Pinned (recommended for reproducible builds):
+
+```html
+<script src="https://unpkg.com/three@0.164.1/build/three.min.js"></script>
+<script src="https://unpkg.com/@mattzh72/lodestone@0.1.0/dist/lodestone.umd.cjs"></script>
+<script>
+  // Load the built-in default pack from unpkg:
+  // https://unpkg.com/@mattzh72/lodestone@0.1.0/assets/default-pack/
+  (async () => {
+    const baseUrl = 'https://unpkg.com/@mattzh72/lodestone@0.1.0/assets/default-pack/'
+    const { resources } = await Lodestone.loadDefaultPackResources({ baseUrl })
+    // ...use `resources` with `ThreeStructureRenderer`
+  })()
+</script>
+```
+
+Or `@latest` (convenient, but can change underneath you):
+
+```html
+<script src="https://unpkg.com/three@0.164.1/build/three.min.js"></script>
+<script src="https://unpkg.com/@mattzh72/lodestone@latest/dist/lodestone.umd.cjs"></script>
+<script>
+  const { Structure, ThreeStructureRenderer } = window.Lodestone
+</script>
+```
+
+## Resources (what you supply)
+
+If you want to use your own resource pack instead of the built-in default pack, you provide a `Resources` object that can answer:
+- block definitions (`blockstates/*.json`)
+- block models (`models/*.json`)
+- a texture atlas (`ImageData`) and UV lookup
+- simple per-block flags (opaque / transparent / emissive, etc.)
+
+The `demo/` folder shows one concrete way to load these inputs.
+
+## Contributing
+
+Issues and PRs are welcome: https://github.com/mattzh72/lodestone/issues
 
 ## License
 
-MIT. Includes upstream MIT code from Misode.
+MIT. Lodestone includes upstream MIT-licensed code from Misode (deepslate).

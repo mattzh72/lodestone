@@ -1,6 +1,6 @@
 import { mat4 } from 'gl-matrix'
-import type { ItemRendererResources, ItemRenderingContext, NbtTag, Resources, Voxel } from '../src/index.js'
-import { BlockDefinition, BlockModel, Identifier, ItemRenderer, ItemStack, NormalNoise, Structure, StructureRenderer, TextureAtlas, VoxelRenderer, XoroshiroRandom, jsonToNbt, upperPowerOfTwo } from '../src/index.js'
+import type { ItemRendererResources, ItemRenderingContext, NbtTag, Resources } from '../src/index.js'
+import { BlockDefinition, BlockModel, Identifier, ItemRenderer, ItemStack, NormalNoise, Structure, StructureRenderer, TextureAtlas, XoroshiroRandom, jsonToNbt, upperPowerOfTwo } from '../src/index.js'
 import { } from '../src/nbt/Util.js'
 import { ItemModel } from '../src/render/ItemModel.js'
 
@@ -192,29 +192,4 @@ Promise.all([
 		structureRenderer.drawStructure(view)
 	}, [size[0] / 2, size[1] / 2, size[2] / 2])
 
-	// === Voxel rendering ===
-
-	const voxelCanvas = document.getElementById('voxel-display') as HTMLCanvasElement
-	const voxelCtx = voxelCanvas.getContext('webgl')!
-	const voxelRenderer = new VoxelRenderer(voxelCtx)
-
-	const voxels: Voxel[] = []
-	const random = XoroshiroRandom.create(BigInt(123))
-	const noise = new NormalNoise(random, { firstOctave: -5, amplitudes: [1, 1, 1] })
-	const sampleRegion = 50
-	for (let x = -sampleRegion; x <= sampleRegion; x += 1) {
-		for (let y = -sampleRegion; y <= sampleRegion; y += 1) {
-			for (let z = -sampleRegion; z <= sampleRegion; z += 1) {
-				const d = noise.sample(x, y, z)
-				if (d > 0) {
-					voxels.push({ x, y, z, color: [200, 200, 200] })
-				}
-			}
-		}
-	}
-	voxelRenderer.setVoxels(voxels)
-
-	new InteractiveCanvas(voxelCanvas, view => {
-		voxelRenderer.draw(view)
-	}, [0, 0, 0], sampleRegion * 3)
 })
