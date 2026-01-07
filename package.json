@@ -32,6 +32,9 @@
     "README.md",
     "!**/*.tsbuildinfo"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",

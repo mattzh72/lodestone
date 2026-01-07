@@ -1,6 +1,9 @@
 # Lodestone
 
 [![npm](https://img.shields.io/npm/v/@mattzh72/lodestone.svg?style=flat-square)](https://www.npmjs.com/package/@mattzh72/lodestone)
+[![release](https://img.shields.io/github/v/release/mattzh72/lodestone?style=flat-square)](https://github.com/mattzh72/lodestone/releases)
+[![CI](https://github.com/mattzh72/lodestone/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/mattzh72/lodestone/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/mattzh72/lodestone/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/mattzh72/lodestone/actions/workflows/codeql.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
 A TypeScript library for rendering Minecraft structures in the browser or headless environments.
