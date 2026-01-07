@@ -71,7 +71,7 @@ export namespace ItemModel {
 	}
 
 	export class Empty {
-		public getMesh(item: ItemStack, resources: ItemRendererResources, context: ItemRenderingContext): Mesh {
+		public getMesh(_item: ItemStack, _resources: ItemRendererResources, _context: ItemRenderingContext): Mesh {
 			return new Mesh()
 		}
 	}
@@ -143,12 +143,12 @@ export namespace ItemModel {
 					return (item, resources, context) => (context.use_duration ?? -1) >= 0
 				case 'bundle/has_selected_item':
 					return (item, resources, context) => (context['bundle/selected_item'] ?? -1) >= 0
-				case 'broken': return (item, resources, context) => {
+				case 'broken': return (item, resources, _context) => {
 					const damage = item.getComponent('damage', resources)?.getAsNumber()
 					const max_damage = item.getComponent('max_damage', resources)?.getAsNumber()
 					return (damage !== undefined && max_damage !== undefined && damage >= max_damage - 1)
 				}
-				case 'damaged': return (item, resources, context) => {
+				case 'damaged': return (item, resources, _context) => {
 					const damage = item.getComponent('damage', resources)?.getAsNumber()
 					const max_damage = item.getComponent('max_damage', resources)?.getAsNumber()
 					return (damage !== undefined && max_damage !== undefined && damage >= 1)
@@ -156,13 +156,13 @@ export namespace ItemModel {
 				case 'has_component': 
 					const componentId = Identifier.parse(Json.readString(root.component) ?? '')
 					const ignore_default = Json.readBoolean(root.ignore_default) ?? false
-					return (item, resources, context) => item.hasComponent(componentId, ignore_default ? undefined : resources)
+					return (item, resources, _context) => item.hasComponent(componentId, ignore_default ? undefined : resources)
 				case 'keybind_down':
 					const keybind = Json.readString(root.keybind) ?? ''
 					return (item, resources, context) => context.keybind_down?.includes(keybind) ?? false
 				case 'custom_model_data':
 					const index = Json.readInt(root.index) ?? 0
-					return (item, resources, context) => {
+					return (item, resources, _context) => {
 						const tag = item.getComponent('custom_model_data', resources)
 						if (!tag?.isCompound()) return false
 						const flag = tag.getList('flags').getNumber(index)
@@ -199,7 +199,7 @@ export namespace ItemModel {
 					return (item, resources, context) => context.context_dimension?.toString() ?? null
 				case 'charge_type':
 					const FIREWORK = Identifier.create('firework_rocket')
-					return (item, resources, context) => {
+					return (item, resources, _context) => {
 						const tag = item.getComponent('charged_projectiles', resources)
 						if (!tag?.isList() || tag.length === 0) {
 							return 'none'
@@ -212,7 +212,7 @@ export namespace ItemModel {
 						}).length > 0 ? 'rocket' : 'arrow'
 					}
 				case 'trim_material':
-					return (item, resources, context) => {
+					return (item, resources, _context) => {
 						const tag = item.getComponent('trim', resources)
 						if (!tag?.isCompound()) {
 							return null
@@ -221,19 +221,19 @@ export namespace ItemModel {
 					}
 				case 'block_state':
 					const block_state_property = Json.readString(root.block_state_property) ?? ''
-					return (item, resources, context) => {
+					return (item, resources, _context) => {
 						const tag = item.getComponent('block_state', resources)
 						if (!tag?.isCompound()) {
 							return null
 						}
 						return tag.getString(block_state_property)
 					}
-				case 'local_time': return (item, resources, context) => 'NOT IMPLEMENTED'
+				case 'local_time': return (_item, _resources, _context) => 'NOT IMPLEMENTED'
 				case 'context_entity_type':
 					return (item, resources, context) => context.context_entity_type?.toString() ?? null
 				case 'custom_model_data':
 					const index = Json.readInt(root.index) ?? 0
-					return (item, resources, context) => {
+					return (item, resources, _context) => {
 						const tag = item.getComponent('custom_model_data', resources)
 						if (!tag?.isCompound()) {
 							return null
@@ -304,10 +304,10 @@ export namespace ItemModel {
 						}, 0)
 					}
 
-					return (item, resources, context) => calculateBundleWeight(item, resources)
+					return (item, resources, _context) => calculateBundleWeight(item, resources)
 				case 'damage': {
 					const normalize = Json.readBoolean(root.normalize) ?? true
-					return (item, resources, context) => {
+					return (item, resources, _context) => {
 						const maxDamage = item.getComponent('max_damage', resources)?.getAsNumber() ?? 0
 						const damage = clamp(item.getComponent('damage', resources)?.getAsNumber() ?? 0, 0, maxDamage)
 						if (normalize) return clamp(damage / maxDamage, 0, 1)
@@ -316,7 +316,7 @@ export namespace ItemModel {
 				}
 				case 'count': {
 					const normalize = Json.readBoolean(root.normalize) ?? true
-					return (item, resources, context) => {
+					return (item, resources, _context) => {
 						const maxStackSize = item.getComponent('max_stack_size', resources)?.getAsNumber() ?? 1
 						if (normalize) return clamp(item.count / maxStackSize, 0, 1)
 						return clamp(item.count, 0, maxStackSize)
@@ -332,33 +332,33 @@ export namespace ItemModel {
 				case 'time': 
 					const source = Json.readString(root.source) ?? 'daytime'
 					switch (source) {
-						case 'moon_phase': return (item, resources, context) => ((context.game_time ?? 0) / 24000 % 8) / 8
-						case 'random': return (item, resources, context) => Math.random()
-						default: return (item, resources, context) => {
+						case 'moon_phase': return (_item, _resources, context) => ((context.game_time ?? 0) / 24000 % 8) / 8
+						case 'random': return (_item, _resources, _context) => Math.random()
+						default: return (_item, _resources, context) => {
 							const gameTime = context.game_time ?? 0
 							const linearTime = ((gameTime / 24000.0) % 1) - 0.25
 							const cosTime = 0.5 - Math.cos(linearTime * Math.PI) / 2.0
 							return (linearTime * 2.0 + cosTime) / 3
 						}
 					}
-				case 'compass': return (item, resources, context) => context.compass_angle ?? 0 // TODO: calculate properly?
-				case 'crossbow/pull': return (item, resources, context) => context['crossbow/pull'] ?? 0
+				case 'compass': return (_item, _resources, context) => context.compass_angle ?? 0 // TODO: calculate properly?
+				case 'crossbow/pull': return (_item, _resources, context) => context['crossbow/pull'] ?? 0
 				case 'use_duration':
 					const remaining = Json.readBoolean(root.remaining) ?? true
-					return (item, resources, context) => {
+					return (_item, _resources, context) => {
 						if (context.use_duration === undefined || context.use_duration < 0) return 0
 						if (remaining) return Math.max((context.max_use_duration ?? 0) - (context.use_duration), 0)
 						return context.use_duration
 					}
 				case 'use_cycle':
 					const period = Json.readNumber(root.period) ?? 1
-					return (item, resources, context) => {
+					return (_item, _resources, context) => {
 						if (context.use_duration === undefined || context.use_duration < 0) return 0
 						return Math.max((context.max_use_duration ?? 0) - (context.use_duration ?? 0), 0) % period
 					}
 				case 'custom_model_data':
 					const index = Json.readInt(root.index) ?? 0
-					return (item, resources, context) => {
+					return (item, resources, _context) => {
 						const tag = item.getComponent('custom_model_data', resources)
 						if (!tag?.isCompound()) {
 							return 0

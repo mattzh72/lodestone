@@ -2,7 +2,7 @@ import { BlockDefinition } from '../render/BlockDefinition.js'
 import { BlockModel } from '../render/BlockModel.js'
 import { TextureAtlas } from '../render/TextureAtlas.js'
 import { upperPowerOfTwo } from '../math/index.js'
-import type { Resources } from '../render/StructureRenderer.js'
+import type { Resources } from '../render/Resources.js'
 
 export type DefaultPackUrls = {
 	baseUrl: string,
@@ -114,12 +114,12 @@ export function createResourcesFromPack(input: {
 
 	const blockDefinitions: Record<string, BlockDefinition> = {}
 	Object.keys(assets.blockstates ?? {}).forEach(id => {
-		blockDefinitions[`minecraft:${id}`] = BlockDefinition.fromJson((assets.blockstates as any)[id])
+		blockDefinitions[`minecraft:${id}`] = BlockDefinition.fromJson(assets.blockstates[id])
 	})
 
 	const blockModels: Record<string, BlockModel> = {}
 	Object.keys(assets.models ?? {}).forEach(id => {
-		blockModels[`minecraft:${id}`] = BlockModel.fromJson((assets.models as any)[id])
+		blockModels[`minecraft:${id}`] = BlockModel.fromJson(assets.models[id])
 	})
 
 	const blockModelAccessor = {
@@ -131,7 +131,7 @@ export function createResourcesFromPack(input: {
 
 	const idMap: Record<string, [number, number, number, number]> = {}
 	Object.keys(assets.textures ?? {}).forEach(id => {
-		const [u, v, du, dv] = (assets.textures as any)[id] as [number, number, number, number]
+		const [u, v, du, dv] = assets.textures[id]
 		const dv2 = (du !== dv && id.startsWith('block/')) ? du : dv
 		idMap[`minecraft:${id}`] = [
 			u / atlas.atlasSize,

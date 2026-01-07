@@ -111,7 +111,8 @@ export class Renderer {
 	}
 
 	protected createAtlasTexture(image: ImageData) {
-		const texture = this.gl.createTexture()!
+		const texture = this.gl.createTexture()
+		if (!texture) throw new Error('Failed to create texture')
 		this.gl.bindTexture(this.gl.TEXTURE_2D, texture)
 		this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, image)
 		this.gl.generateMipmap(this.gl.TEXTURE_2D)

@@ -48,7 +48,7 @@ export namespace ItemTint {
 	export class Constant {
 		constructor(public value: Color) {}
 
-		public getTint(item: ItemStack): Color {
+		public getTint(_item: ItemStack): Color {
 			return this.value
 		}
 	}
@@ -71,7 +71,7 @@ export namespace ItemTint {
 	export class Grass {
 		constructor(public temperature: number, public downfall: number) {}
 
-		public getTint(item: ItemStack): Color {
+		public getTint(_item: ItemStack): Color {
 			return  [124 / 255, 189 / 255, 107 / 255] // TODO: this is hardcoded to the same value as for blocks
 		}
 	}
@@ -90,7 +90,11 @@ export namespace ItemTint {
 			}
 			const color: Color = (() => {
 				if (colors.length === 1) {
-					return Color.intToRgb(colors.get(0)!.getAsNumber())
+					const firstColor = colors.get(0)
+					if (firstColor) {
+						return Color.intToRgb(firstColor.getAsNumber())
+					}
+					return this.default_color
 				}
 				let [r, g, b] = [0, 0, 0]
 				for (const color of colors.getItems()) {

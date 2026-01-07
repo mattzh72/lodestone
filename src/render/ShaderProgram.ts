@@ -12,10 +12,13 @@ export class ShaderProgram {
 	}
 
 	private initShaderProgram(vsSource: string, fsSource: string) {
-		const vertexShader = this.loadShader(this.gl.VERTEX_SHADER, vsSource)!
-		const fragmentShader = this.loadShader(this.gl.FRAGMENT_SHADER, fsSource)!
+		const vertexShader = this.loadShader(this.gl.VERTEX_SHADER, vsSource)
+		if (!vertexShader) throw new Error('Failed to create vertex shader')
+		const fragmentShader = this.loadShader(this.gl.FRAGMENT_SHADER, fsSource)
+		if (!fragmentShader) throw new Error('Failed to create fragment shader')
 
-		const shaderProgram = this.gl.createProgram()!
+		const shaderProgram = this.gl.createProgram()
+		if (!shaderProgram) throw new Error('Failed to create shader program')
 		this.gl.attachShader(shaderProgram, vertexShader)
 		this.gl.attachShader(shaderProgram, fragmentShader)
 		this.gl.linkProgram(shaderProgram)
@@ -28,7 +31,8 @@ export class ShaderProgram {
 	}
 
 	private loadShader(type: number, source: string) {
-		const shader = this.gl.createShader(type)!
+		const shader = this.gl.createShader(type)
+		if (!shader) throw new Error('Failed to create shader')
 
 		this.gl.shaderSource(shader, source)
 		this.gl.compileShader(shader)

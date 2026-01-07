@@ -43,7 +43,8 @@ export class TextureAtlas implements TextureAtlasProvider {
 		const canvas = document.createElement('canvas')
 		canvas.width = pixelWidth
 		canvas.height = pixelWidth
-		const ctx = canvas.getContext('2d')!
+		const ctx = canvas.getContext('2d')
+		if (!ctx) throw new Error('Failed to get 2D rendering context')
 		this.drawInvalidTexture(ctx)
 
 		const idMap: Record<string, UV> = {}
@@ -64,7 +65,8 @@ export class TextureAtlas implements TextureAtlasProvider {
 		const canvas = document.createElement('canvas')
 		canvas.width = 16
 		canvas.height = 16
-		const ctx = canvas.getContext('2d')!
+		const ctx = canvas.getContext('2d')
+		if (!ctx) throw new Error('Failed to get 2D rendering context')
 		TextureAtlas.drawInvalidTexture(ctx)
 		return new TextureAtlas(ctx.getImageData(0, 0, 16, 16), {})
 	}

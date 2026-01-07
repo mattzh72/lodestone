@@ -7,7 +7,7 @@ describe('ItemTint', () => {
 	const TEST_COLOR = [0.1, 0.2, 0.3] as Color
 
 	const resources: ItemComponentsProvider = {
-		getItemComponents(id) { return new Map() },
+		getItemComponents(_id) { return new Map() },
 	}
 
 	it('fromJson', () => {

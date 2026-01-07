@@ -3,9 +3,9 @@ import * as THREE from 'three'
 import type { StructureProvider } from '../core/index.js'
 import { BlockState } from '../core/index.js'
 import type { Color } from '../index.js'
-import { ChunkBuilder, EmissiveLight } from './ChunkBuilder.js'
+import { ChunkBuilder } from './ChunkBuilder.js'
 import { Mesh } from './Mesh.js'
-import type { Resources } from './StructureRenderer.js'
+import type { Resources } from './Resources.js'
 
 const MAX_EMISSIVE_LIGHTS = 8192; // Large upper bound to effectively treat emissive count as unbounded within shader limits
 

@@ -15,11 +15,11 @@ describe('ItemModel', () => {
 	const blockModel2 = vi.spyOn(blockModels['test:2'], 'getMesh')
 	
 	const resources: ItemRendererResources = {
-		getBlockModel(id) { return blockModels[id.toString()] },
-		getItemModel(id) { return null },
+		getBlockModel(_id) { return blockModels[_id.toString()] },
+		getItemModel(_id) { return null },
 		getTextureAtlas() { return new ImageData(0, 0) },
-		getTextureUV(texture) { return [0, 0, 0, 0] },
-		getItemComponents(id) { return new Map() },
+		getTextureUV(_texture) { return [0, 0, 0, 0] },
+		getItemComponents(_id) { return new Map() },
 	}
 
 	it('Model', () => {

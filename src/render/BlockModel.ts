@@ -215,27 +215,39 @@ export class BlockModel {
 		if (!this.textures) {
 			this.textures = {}
 		}
-		Object.keys(parent.textures ?? {}).forEach(t => {
-			if (!this.textures![t]) {
-				this.textures![t] = parent.textures![t]
-			}
-		})
+		const textures = this.textures
+		const parentTextures = parent.textures
+		if (parentTextures) {
+			Object.keys(parentTextures).forEach(t => {
+				if (!textures[t]) {
+					textures[t] = parentTextures[t]
+				}
+			})
+		}
 		if (!this.display) {
 			this.display = {}
 		}
-		Object.keys(parent.display ?? {}).forEach(k => {
-			const l = k as Display
-			if (!this.display![l]) {
-				this.display![l] = parent.display![l]
-			} else {
-				Object.keys(parent.display![l] ?? {}).forEach(m => {
-					const n = m as 'rotation' | 'translation' | 'scale'
-					if (!this.display![l]![n]) {
-						this.display![l]![n] = parent.display![l]![n]
+		const display = this.display
+		const parentDisplay = parent.display
+		if (parentDisplay) {
+			Object.keys(parentDisplay).forEach(k => {
+				const l = k as Display
+				if (!display[l]) {
+					display[l] = parentDisplay[l]
+				} else {
+					const parentDisplayL = parentDisplay[l]
+					if (parentDisplayL) {
+						Object.keys(parentDisplayL).forEach(m => {
+							const n = m as 'rotation' | 'translation' | 'scale'
+							const displayL = display[l]
+							if (displayL && !displayL[n] && parentDisplayL[n]) {
+								displayL[n] = parentDisplayL[n]
+							}
+						})
 					}
-				})
-			}
-		})
+				}
+			})
+		}
 		if (!this.guiLight) {
 			this.guiLight = parent.guiLight
 		}
@@ -268,8 +280,9 @@ export class BlockModel {
 		return accessor.getBlockModel(this.parent)
 	}
 
-	public static fromJson(data: any) {
-		const parent = data.parent === undefined ? undefined : Identifier.parse(data.parent)
-		return new BlockModel(parent, data.textures, data.elements, data.display)
+	public static fromJson(data: unknown) {
+		const obj = data as { parent?: unknown, textures?: unknown, elements?: unknown, display?: unknown }
+		const parent = obj.parent === undefined ? undefined : Identifier.parse(obj.parent)
+		return new BlockModel(parent, obj.textures, obj.elements, obj.display)
 	}
 }

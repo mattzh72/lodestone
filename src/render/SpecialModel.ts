@@ -100,7 +100,7 @@ export namespace SpecialModel {
 
 		constructor(
 			texture: Identifier,
-			openness: number
+			_openness: number
 		) {
 			this.renderer = SpecialRenderers.chestRenderer(texture)
 		}
@@ -117,7 +117,7 @@ export namespace SpecialModel {
 	class Head implements SpecialModel {
 		private readonly renderer
 
-		constructor(kind: string, texture: Identifier | undefined, animation: number) {
+		constructor(kind: string, texture: Identifier | undefined, _animation: number) {
 			this.renderer = ({
 				skeleton: () => SpecialRenderers.headRenderer(texture ?? Identifier.create('skeleton/skeleton'), 2),
 				wither_skeleton: () => SpecialRenderers.headRenderer(texture ?? Identifier.create('skeleton/wither_skeleton'), 2),
@@ -137,7 +137,7 @@ export namespace SpecialModel {
 	class ShulkerBox implements SpecialModel {
 		private readonly renderer
 
-		constructor(texture: Identifier, openness: number, orientation: Direction) {
+		constructor(texture: Identifier, _openness: number, _orientation: Direction) {
 			this.renderer = SpecialRenderers.shulkerBoxRenderer(texture)
 		}
 
@@ -159,7 +159,7 @@ export namespace SpecialModel {
 	}
 
 	class Trident implements SpecialModel {
-		public getMesh(item: ItemStack, resources: TextureAtlasProvider): Mesh {
+		public getMesh(_item: ItemStack, _resources: TextureAtlasProvider): Mesh {
 			return new Mesh() // TODO
 		}
 	}

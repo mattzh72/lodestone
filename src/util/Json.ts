@@ -26,9 +26,9 @@ export namespace Json {
 	}
 
 	export function readArray<T>(obj: JsonValue | undefined, parser: (obj?: JsonValue) => T): T[] | undefined
-	export function readArray<T>(obj: JsonValue | undefined): (JsonValue | undefined)[] | undefined
+	export function readArray(obj: JsonValue | undefined): (JsonValue | undefined)[] | undefined
 	export function readArray<T>(obj: unknown, parser: (obj: unknown) => T): T[] | undefined
-	export function readArray<T>(obj: unknown, parser?: (obj: any) => T) {
+	export function readArray<T>(obj: unknown, parser?: (obj: unknown) => T) {
 		if (!Array.isArray(obj)) return undefined
 		if (!parser) return obj
 		return obj.map(el => parser(el))
@@ -41,7 +41,7 @@ export namespace Json {
 
 	export function readMap<T>(obj: JsonValue | undefined, parser: (obj?: JsonValue) => T): { [x: string]: T }
 	export function readMap<T>(obj: unknown, parser: (obj: unknown) => T): { [x: string]: T }
-	export function readMap<T>(obj: unknown, parser: (obj: any) => T) {
+	export function readMap<T>(obj: unknown, parser: (obj: unknown) => T) {
 		const root = readObject(obj) ?? {}
 		return Object.fromEntries(Object.entries(root).map(([k, v]) => [k, parser(v)]))
 	}

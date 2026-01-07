@@ -57,13 +57,13 @@ export class LitematicLoader {
 			sizeNbt.getNumber('z') ?? 0,
 		]
 
-		// Get position (offset)
-		const posNbt = region.getCompound('Position')
-		const offset: BlockPos = [
-			posNbt.getNumber('x') ?? 0,
-			posNbt.getNumber('y') ?? 0,
-			posNbt.getNumber('z') ?? 0,
-		]
+		// Get position (offset) - currently unused but available for future use
+		// const posNbt = region.getCompound('Position')
+		// const offset: BlockPos = [
+		// 	posNbt.getNumber('x') ?? 0,
+		// 	posNbt.getNumber('y') ?? 0,
+		// 	posNbt.getNumber('z') ?? 0,
+		// ]
 
 		// Parse palette
 		const paletteList = region.getList('BlockStatePalette')
@@ -78,8 +78,9 @@ export class LitematicLoader {
 			if (entry.has('Properties')) {
 				const propsTag = entry.get('Properties')
 				if (propsTag && propsTag.isCompound()) {
-					propsTag.forEach((key: string, value: any) => {
-						properties[key] = value.getAsString?.() ?? ''
+					propsTag.forEach((key: string, value: unknown) => {
+						const tag = value as { getAsString?: () => string }
+						properties[key] = tag.getAsString?.() ?? ''
 					})
 				}
 			}

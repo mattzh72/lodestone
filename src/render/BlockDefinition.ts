@@ -98,7 +98,8 @@ export class BlockDefinition {
 		})
 	}
 
-	public static fromJson(data: any) {
-		return new BlockDefinition(data.variants, data.multipart)
+	public static fromJson(data: unknown) {
+		const obj = data as { variants?: unknown, multipart?: unknown }
+		return new BlockDefinition(obj.variants, obj.multipart)
 	}
 }

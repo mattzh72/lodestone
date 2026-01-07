@@ -50,7 +50,10 @@ export class HolderSet<T>{
 		}) ?? []
 
 		if (id && !replace && registry.getTagRegistry().has(id)){
-			entries?.push(Holder.direct(registry.getTagRegistry().get(id)!))
+			const value = registry.getTagRegistry().get(id)
+		if (value !== undefined) {
+			entries?.push(Holder.direct(value))
+		}
 		}
 
 		return new HolderSet(entries)

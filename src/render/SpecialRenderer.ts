@@ -626,7 +626,7 @@ export namespace SpecialRenderers {
 		down: {uv: [10.25, 0, 5.25, 0.25], texture: `#${index}`, tintindex: index},
 	})
 
-	function createBannerRenderer(color: string, config: { base: any[], pattern: (index: number) => any }) {
+	function createBannerRenderer(color: string, config: { base: unknown[], pattern: (index: number) => unknown }) {
 		return (atlas: TextureAtlasProvider, patterns?: NbtList<NbtCompound>) => {
 			const textures: { [key: string]: string } = { 0: 'entity/banner_base' }
 			const elements = [...config.base]

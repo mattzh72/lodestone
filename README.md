@@ -17,7 +17,7 @@ Build interactive Minecraft structure viewers, schematic editors, world previews
 ## Features
 
 - **Litematic file support** — Load and render `.litematic` schematic files (Litematica mod format)
-- **Flexible rendering** — Choose between `ThreeStructureRenderer` (full-featured) or `StructureRenderer` (lightweight WebGL)
+- **Flexible rendering** — `ThreeStructureRenderer` provides full-featured Three.js rendering
 - **Resource pack system** — Works with the built-in default pack or your own custom resource packs
 - **Advanced rendering** — Chunked meshing with occlusion culling, transparency sorting, and emissive block support
 - **Universal runtime** — Runs in browsers and headless environments with WebGL
