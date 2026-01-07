@@ -90,11 +90,11 @@ Load Three.js first, then Lodestone. The UMD bundle exposes `window.Lodestone`.
 
 ```html
 <script src="https://unpkg.com/three@0.164.1/build/three.min.js"></script>
-<script src="https://unpkg.com/@mattzh72/lodestone@0.2.2/dist/lodestone.umd.cjs"></script>
+<script src="https://unpkg.com/@mattzh72/lodestone@0.3.1/dist/lodestone.umd.cjs"></script>
 <script>
   // Load the built-in default pack from unpkg
   (async () => {
-    const baseUrl = 'https://unpkg.com/@mattzh72/lodestone@0.2.2/assets/default-pack/'
+    const baseUrl = 'https://unpkg.com/@mattzh72/lodestone@0.3.1/assets/default-pack/'
     const { resources } = await Lodestone.loadDefaultPackResources({ baseUrl })
     // ...use resources with ThreeStructureRenderer
   })()
@@ -105,7 +105,7 @@ Load Three.js first, then Lodestone. The UMD bundle exposes `window.Lodestone`.
 
 ```html
 <script src="https://unpkg.com/three@0.164.1/build/three.min.js"></script>
-<script src="https://unpkg.com/@mattzh72/lodestone@latest/dist/lodestone.umd.cjs"></script>
+<script src="https://unpkg.com/@mattzh72/lodestone@0.3.1/dist/lodestone.umd.cjs"></script>
 <script>
   const { Structure, ThreeStructureRenderer } = window.Lodestone
 </script>
