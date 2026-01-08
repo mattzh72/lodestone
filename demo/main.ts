@@ -22,6 +22,11 @@ type SunlightPreset = {
 		sunGlowColor?: [number, number, number],
 		sunGlowIntensity?: number,
 		sunGlowExponent?: number,
+		stars?: {
+			enabled?: boolean,
+			density?: number,
+			brightness?: number,
+		},
 	},
 	fog?: {
 		color?: [number, number, number],
@@ -35,6 +40,15 @@ type SunlightPreset = {
 		softness?: number,
 		frustumSize?: number,
 	},
+	disc?: {
+		size?: number,
+		distance?: number,
+		coreColor?: [number, number, number],
+		glowColor?: [number, number, number],
+		coreIntensity?: number,
+		glowIntensity?: number,
+		softness?: number,
+	},
 }
 
 type DemoBuild = {
@@ -45,21 +59,38 @@ type DemoBuild = {
 
 const SUNLIGHT_PRESETS: Record<TimePreset, SunlightPreset> = {
 	night: {
-		direction: vec3.fromValues(0.3, -0.8, 0.4),
-		color: [0.15, 0.18, 0.35],
-		ambientColor: [0.05, 0.08, 0.18],
-		fillColor: [0.08, 0.1, 0.22],
-		rimColor: [0.12, 0.15, 0.28],
-		intensity: 0.3,
-		ambientIntensity: 0.35,
-		fillIntensity: 0.15,
-		rimIntensity: 0.2,
+		direction: vec3.fromValues(-0.2, 0.92, 0.32),
+		color: [0.3, 0.34, 0.55],
+		ambientColor: [0.08, 0.12, 0.22],
+		fillColor: [0.12, 0.14, 0.26],
+		rimColor: [0.18, 0.2, 0.35],
+		intensity: 0.5,
+		ambientIntensity: 0.45,
+		fillIntensity: 0.25,
+		rimIntensity: 0.28,
 		horizonFalloff: 0.4,
-		exposure: 0.85,
+		exposure: 0.95,
 		sky: {
 			zenithColor: [0.02, 0.03, 0.08],
 			horizonColor: [0.08, 0.1, 0.2],
 			groundColor: [0.01, 0.01, 0.02],
+			sunGlowColor: [0.45, 0.55, 0.78],
+			sunGlowIntensity: 0.12,
+			sunGlowExponent: 10.0,
+			stars: {
+				enabled: true,
+				density: 0.4,
+				brightness: 0.95,
+			},
+		},
+		disc: {
+			size: 18,
+			distance: 210,
+			coreColor: [0.82, 0.88, 1.0],
+			glowColor: [0.5, 0.6, 0.85],
+			coreIntensity: 1.1,
+			glowIntensity: 0.6,
+			softness: 0.32,
 		},
 		fog: {
 			color: [0.05, 0.08, 0.15],
