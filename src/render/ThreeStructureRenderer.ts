@@ -3,11 +3,13 @@ import * as THREE from 'three'
 import type { StructureProvider } from '../core/index.js'
 import { BlockState } from '../core/index.js'
 import type { Color } from '../index.js'
-import { ChunkBuilder } from './ChunkBuilder.js'
+import { ChunkBuilder, type EmissiveLight } from './ChunkBuilder.js'
 import { Mesh } from './Mesh.js'
 import type { Resources } from './Resources.js'
 
-const MAX_EMISSIVE_LIGHTS = 8192; // Large upper bound to effectively treat emissive count as unbounded within shader limits
+const MAX_EMISSIVE_LIGHTS = 256 // Cap to keep per-fragment emissive loop bounded
+const EMISSIVE_UPDATE_DISTANCE = 2
+const EMISSIVE_UPDATE_DISTANCE_SQ = EMISSIVE_UPDATE_DISTANCE * EMISSIVE_UPDATE_DISTANCE
 
 type SunDiscOptions = {
 	size?: number,
@@ -122,6 +124,8 @@ type ThreeStructureRendererOptions = {
 	preserveDrawingBuffer?: boolean,
 	antialias?: boolean,
 	sunlight?: SunlightOptions,
+	asyncBuild?: boolean,
+	asyncChunkBuildTimeMs?: number,
 }
 
 const makeFloatTexture = (data: Float32Array, width: number, height: number = 1) => {
@@ -393,6 +397,10 @@ export class ThreeStructureRenderer {
 	private sunlight: SunlightSettings
 	private skyMesh?: THREE.Mesh
 	private sunDisc?: THREE.Mesh
+	private shadowDirty = true
+	private emissiveSelectionDirty = true
+	private lastEmissiveCameraPos: vec3 | null = null
+	private lastEmissiveLightCount = 0
 
 	// Post-processing
 	private sceneTarget: THREE.WebGLRenderTarget | null = null
@@ -410,6 +418,10 @@ export class ThreeStructureRenderer {
 	private compositeMaterial: THREE.ShaderMaterial | null = null
 
 	private readonly chunkBuilder: ChunkBuilder
+	private readonly asyncBuild: boolean
+	private readonly asyncChunkBuildTimeMs: number
+	private buildPromise: Promise<void> | null = null
+	private buildToken = 0
 	private chunkMeshes: THREE.Mesh[] = []
 	private grid?: THREE.LineSegments
 	private invisibleBlocks?: THREE.LineSegments
@@ -433,7 +445,7 @@ export class ThreeStructureRenderer {
 			canvas,
 			alpha: false,
 			antialias: options?.antialias ?? true,
-			preserveDrawingBuffer: options?.preserveDrawingBuffer ?? true,
+			preserveDrawingBuffer: options?.preserveDrawingBuffer ?? false,
 		})
 		this.renderer.autoClear = false
 		this.renderer.setClearColor(0x000000, 1)
@@ -457,7 +469,9 @@ export class ThreeStructureRenderer {
 			(this.structure.getSize()[1] ?? 0) / 2,
 			(this.structure.getSize()[2] ?? 0) / 2
 		)
-		this.chunkBuilder = new ChunkBuilder(gl, structure, resources, chunkSize)
+		this.asyncBuild = options?.asyncBuild ?? false
+		this.asyncChunkBuildTimeMs = options?.asyncChunkBuildTimeMs ?? 8
+		this.chunkBuilder = new ChunkBuilder(gl, structure, resources, chunkSize, !this.asyncBuild)
 		this.useInvisibleBlocks = options?.useInvisibleBlockBuffer ?? false
 		this.drawDistance = options?.drawDistance
 		this.sunlight = buildSunlightSettings(options?.sunlight)
@@ -489,7 +503,11 @@ export class ThreeStructureRenderer {
 			})
 		}
 
-		this.rebuildChunkObjects()
+		if (this.asyncBuild) {
+			void this.rebuildChunksAsync()
+		} else {
+			this.rebuildChunkObjects()
+		}
 		this.grid = this.createGrid()
 		if (this.grid) this.overlayScene.add(this.grid)
 		if (this.useInvisibleBlocks) {
@@ -507,13 +525,16 @@ export class ThreeStructureRenderer {
 		this.initPostProcessing(canvas.width || 800, canvas.height || 600)
 	}
 
-	public setViewport(x: number, y: number, width: number, height: number) {
-		this.renderer.setViewport(x, y, width, height)
+	public setViewport(x: number, y: number, width: number, height: number, pixelRatio: number = 1) {
+		this.renderer.setPixelRatio(pixelRatio)
 		this.renderer.setSize(width, height, false)
+		this.renderer.setScissorTest(false)
+		this.renderer.setViewport(x, y, width, height)
 		this.camera.aspect = width / Math.max(height, 1)
 		this.camera.updateProjectionMatrix()
 		// Resize post-processing targets
-		this.resizePostProcessTargets(width, height)
+		const bufferSize = this.renderer.getDrawingBufferSize(new THREE.Vector2())
+		this.resizePostProcessTargets(Math.max(1, Math.floor(bufferSize.x)), Math.max(1, Math.floor(bufferSize.y)))
 	}
 
 	public setFOV(fov: number) {
@@ -528,15 +549,36 @@ export class ThreeStructureRenderer {
 			(this.structure.getSize()[1] ?? 0) / 2,
 			(this.structure.getSize()[2] ?? 0) / 2
 		)
-		this.chunkBuilder.setStructure(structure)
-		this.rebuildChunkObjects()
-		this.rebuildOverlay()
+		if (this.asyncBuild) {
+			this.chunkBuilder.setStructure(structure, { rebuild: false })
+			this.rebuildOverlay()
+			void this.rebuildChunksAsync()
+		} else {
+			this.chunkBuilder.setStructure(structure)
+			this.rebuildChunkObjects()
+			this.rebuildOverlay()
+		}
+		this.shadowDirty = true
 	}
 
 	public updateStructureBuffers(chunkPositions?: vec3[]): void {
+		if (this.asyncBuild) {
+			void this.updateStructureBuffersAsync(chunkPositions)
+			return
+		}
 		this.chunkBuilder.updateStructureBuffers(chunkPositions)
 		this.rebuildChunkObjects()
 		this.rebuildOverlay()
+		this.shadowDirty = true
+	}
+
+	public async updateStructureBuffersAsync(chunkPositions?: vec3[]) {
+		this.rebuildOverlay()
+		await this.rebuildChunksAsync(chunkPositions)
+	}
+
+	public whenReady() {
+		return this.buildPromise ?? Promise.resolve()
 	}
 
 	public drawStructure(viewMatrix: mat4) {
@@ -603,6 +645,8 @@ export class ThreeStructureRenderer {
 	}
 
 	public dispose() {
+		this.buildToken += 1
+		this.chunkBuilder.cancelPendingBuilds()
 		// Remove chunk meshes from scene FIRST, then dispose geometries
 		this.chunkMeshes.forEach(mesh => {
 			this.structureScene.remove(mesh)
@@ -699,6 +743,7 @@ export class ThreeStructureRenderer {
 		} else {
 			this.chunkMeshes.forEach(mesh => mesh.visible = true)
 		}
+		this.updateEmissiveLightsForCamera(camPos)
 	}
 
 	private rebuildChunkObjects() {
@@ -728,7 +773,9 @@ export class ThreeStructureRenderer {
 		})
 
 		// Update emissive light uniforms
-		this.updateEmissiveLightUniforms()
+		const emissiveLights = this.chunkBuilder.getEmissiveLights()
+		this.updateEmissiveLightUniforms(emissiveLights)
+		this.emissiveSelectionDirty = true
 
 		if (this.debug) {
 			console.log('[lodestone] rebuilt chunks', {
@@ -737,9 +784,68 @@ export class ThreeStructureRenderer {
 		}
 	}
 
-	private updateEmissiveLightUniforms() {
-		const lights = this.chunkBuilder.getEmissiveLights()
-		const count = lights.length
+	private async rebuildChunksAsync(chunkPositions?: vec3[]) {
+		const token = ++this.buildToken
+		const build = (async () => {
+			await this.chunkBuilder.updateStructureBuffersAsync({
+				chunkPositions,
+				timeSliceMs: this.asyncChunkBuildTimeMs,
+			})
+			if (token !== this.buildToken) return
+			await this.rebuildChunkObjectsAsync(token)
+		})()
+		this.buildPromise = build
+		return build
+	}
+
+	private async rebuildChunkObjectsAsync(token: number) {
+		this.chunkMeshes.forEach(mesh => {
+			this.structureScene.remove(mesh)
+			mesh.geometry.dispose()
+		})
+		this.chunkMeshes = []
+
+		const meshes = this.chunkBuilder.getMeshEntries()
+		let lastYield = this.now()
+		for (let i = 0; i < meshes.length; i++) {
+			if (token !== this.buildToken) return
+			const entry = meshes[i]
+			if (entry.mesh.isEmpty()) continue
+			const geometry = meshToBufferGeometry(entry.mesh)
+			const material = entry.transparent ? this.transparentMaterial : this.opaqueMaterial
+			const mesh = new THREE.Mesh(geometry, material)
+			mesh.renderOrder = entry.transparent ? 1 : 0
+			mesh.userData.origin = entry.origin
+			this.structureScene.add(mesh)
+			this.chunkMeshes.push(mesh)
+			if (this.debug && i === 0) {
+				console.log('[lodestone] chunk geometry sample', {
+					vertices: geometry.getAttribute('position')?.count ?? 0,
+					indices: geometry.getIndex()?.count ?? 0,
+					transparent: entry.transparent,
+				})
+			}
+			if ((i & 0x1f) === 0 && this.now() - lastYield >= this.asyncChunkBuildTimeMs) {
+				await this.yieldControl()
+				lastYield = this.now()
+			}
+		}
+
+		if (token !== this.buildToken) return
+		const emissiveLights = this.chunkBuilder.getEmissiveLights()
+		this.updateEmissiveLightUniforms(emissiveLights)
+		this.emissiveSelectionDirty = true
+		this.shadowDirty = true
+
+		if (this.debug) {
+			console.log('[lodestone] rebuilt chunks (async)', {
+				count: this.chunkMeshes.length,
+			})
+		}
+	}
+
+	private updateEmissiveLightUniforms(lights: EmissiveLight[]) {
+		const count = Math.min(lights.length, MAX_EMISSIVE_LIGHTS)
 		const maxSide = this.maxEmissiveTextureSize || 8192
 		const texWidth = Math.min(maxSide, Math.max(1, Math.ceil(Math.sqrt(Math.max(1, count)))))
 		const texHeight = Math.min(maxSide, Math.max(1, Math.ceil(count / texWidth)))
@@ -785,6 +891,80 @@ export class ThreeStructureRenderer {
 		if (this.debug && writeCount > 0) {
 			console.log('[lodestone] emissive lights', { count: writeCount })
 		}
+	}
+
+	private updateEmissiveLightsForCamera(cameraPos: vec3) {
+		const lights = this.chunkBuilder.getEmissiveLights()
+		if (lights.length === 0) {
+			if (this.emissiveSelectionDirty || this.lastEmissiveLightCount !== 0) {
+				this.updateEmissiveLightUniforms([])
+				this.lastEmissiveLightCount = 0
+				this.emissiveSelectionDirty = false
+			}
+			this.lastEmissiveCameraPos = vec3.clone(cameraPos)
+			return
+		}
+
+		const movedEnough = !this.lastEmissiveCameraPos || this.cameraMovedEnough(cameraPos, this.lastEmissiveCameraPos)
+		if (!this.emissiveSelectionDirty && !movedEnough) return
+
+		const maxDistanceSq = this.drawDistance
+			? Math.pow(this.drawDistance + this.sunlight.emissive.range, 2)
+			: undefined
+		const selected = this.pickNearestEmissiveLights(lights, cameraPos, MAX_EMISSIVE_LIGHTS, maxDistanceSq)
+		this.updateEmissiveLightUniforms(selected)
+		this.lastEmissiveLightCount = selected.length
+		this.emissiveSelectionDirty = false
+		this.lastEmissiveCameraPos = vec3.clone(cameraPos)
+	}
+
+	private cameraMovedEnough(current: vec3, last: vec3) {
+		const dx = current[0] - last[0]
+		const dy = current[1] - last[1]
+		const dz = current[2] - last[2]
+		return dx * dx + dy * dy + dz * dz >= EMISSIVE_UPDATE_DISTANCE_SQ
+	}
+
+	private pickNearestEmissiveLights(lights: EmissiveLight[], cameraPos: vec3, maxLights: number, maxDistanceSq?: number) {
+		if (lights.length <= maxLights && maxDistanceSq === undefined) {
+			return lights
+		}
+
+		const selected: { light: EmissiveLight, distSq: number }[] = []
+		let worstIndex = -1
+		let worstDistSq = -1
+
+		for (const light of lights) {
+			const dx = light.position[0] - cameraPos[0]
+			const dy = light.position[1] - cameraPos[1]
+			const dz = light.position[2] - cameraPos[2]
+			const distSq = dx * dx + dy * dy + dz * dz
+			if (maxDistanceSq !== undefined && distSq > maxDistanceSq) {
+				continue
+			}
+			if (selected.length < maxLights) {
+				selected.push({ light, distSq })
+				if (distSq > worstDistSq) {
+					worstDistSq = distSq
+					worstIndex = selected.length - 1
+				}
+				continue
+			}
+			if (distSq >= worstDistSq) continue
+			selected[worstIndex] = { light, distSq }
+
+			worstDistSq = selected[0].distSq
+			worstIndex = 0
+			for (let i = 1; i < selected.length; i++) {
+				if (selected[i].distSq > worstDistSq) {
+					worstDistSq = selected[i].distSq
+					worstIndex = i
+				}
+			}
+		}
+
+		selected.sort((a, b) => a.distSq - b.distSq)
+		return selected.map(entry => entry.light)
 	}
 
 	private rebuildOverlay() {
@@ -944,6 +1124,8 @@ export class ThreeStructureRenderer {
 					// Minecraft-style behavior: multiple nearby light sources shouldn't linearly "stack" to infinity.
 					// We approximate this by taking the brightest emissive contribution per-fragment instead of summing,
 					// which prevents clustered emissive blocks from blowing out the scene.
+					if (emissiveLightCount <= 0) return vec3(0.0);
+
 					vec3 bestLight = vec3(0.0);
 					float bestLum = 0.0;
 
@@ -1108,6 +1290,8 @@ export class ThreeStructureRenderer {
 		this.applySkyUniforms()
 		this.applySunDiscUniforms()
 		this.applyPostProcessUniforms()
+		this.shadowDirty = true
+		this.emissiveSelectionDirty = true
 	}
 
 	private syncShadowResources() {
@@ -1117,12 +1301,14 @@ export class ThreeStructureRenderer {
 				this.shadowMap?.dispose()
 				this.shadowMap = null
 				this.initShadowMap()
+				this.shadowDirty = true
 			}
 			return
 		}
 
 		this.shadowMap?.dispose()
 		this.shadowMap = null
+		this.shadowDirty = true
 	}
 
 	private syncPostProcessingResources() {
@@ -1421,10 +1607,14 @@ export class ThreeStructureRenderer {
 
 	private applyDrawDistance(cameraPos: vec3, maxDistance: number) {
 		const maxDistanceSq = maxDistance * maxDistance
+		let visibilityChanged = false
 		for (const mesh of this.chunkMeshes) {
 			const origin = mesh.userData.origin as vec3 | undefined
 			if (!origin) {
-				mesh.visible = true
+				if (!mesh.visible) {
+					mesh.visible = true
+					visibilityChanged = true
+				}
 				continue
 			}
 			const center: vec3 = [
@@ -1435,8 +1625,28 @@ export class ThreeStructureRenderer {
 			const dx = center[0] - cameraPos[0]
 			const dy = center[1] - cameraPos[1]
 			const dz = center[2] - cameraPos[2]
-			mesh.visible = dx*dx + dy*dy + dz*dz <= maxDistanceSq
+			const nextVisible = dx*dx + dy*dy + dz*dz <= maxDistanceSq
+			if (mesh.visible !== nextVisible) {
+				mesh.visible = nextVisible
+				visibilityChanged = true
+			}
 		}
+		if (visibilityChanged) {
+			this.shadowDirty = true
+		}
+	}
+
+	private now() {
+		return typeof performance !== 'undefined' ? performance.now() : Date.now()
+	}
+
+	private async yieldControl() {
+		const requestIdle = (globalThis as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback
+		if (requestIdle) {
+			await new Promise<void>(resolve => requestIdle(resolve))
+			return
+		}
+		await new Promise<void>(resolve => setTimeout(resolve, 0))
 	}
 
 	private positionSunDisc(viewMatrix: mat4) {
@@ -1804,6 +2014,7 @@ export class ThreeStructureRenderer {
 
 	private renderShadowPass() {
 		if (!this.sunlight.shadow.enabled || !this.shadowMap) return
+		if (!this.shadowDirty) return
 
 		this.updateShadowCamera()
 
@@ -1842,6 +2053,7 @@ export class ThreeStructureRenderer {
 		// Restore render target
 		this.renderer.setRenderTarget(oldRenderTarget)
 		this.renderer.setClearColor(0x000000, 1)
+		this.shadowDirty = false
 	}
 
 	// ==================== POST-PROCESSING ====================

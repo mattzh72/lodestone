@@ -99,6 +99,60 @@
 			background: #000;
 		}
 
+		.loading {
+			position: absolute;
+			inset: 18px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: var(--muted);
+			font-size: 12px;
+			letter-spacing: 0.02em;
+			background: rgba(12, 17, 27, 0.25);
+			opacity: 0;
+			transform: translateY(-6px);
+			pointer-events: none;
+			transition: opacity 0.2s ease, transform 0.2s ease;
+		}
+
+		.loading.active {
+			opacity: 1;
+			transform: translateY(0);
+		}
+
+		.loading-card {
+			display: inline-flex;
+			align-items: center;
+			gap: 10px;
+			padding: 10px 16px;
+			border-radius: 999px;
+			background: rgba(12, 17, 27, 0.85);
+			border: 1px solid rgba(28, 42, 68, 0.7);
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+		}
+
+		.loading-spinner {
+			width: 12px;
+			height: 12px;
+			border-radius: 50%;
+			border: 2px solid rgba(125, 211, 252, 0.4);
+			border-top-color: var(--accent-2);
+			animation: spin 0.9s linear infinite;
+		}
+
+		.panel.is-building canvas {
+			filter: blur(6px) saturate(0.9);
+		}
+
+		@keyframes spin {
+			from {
+				transform: rotate(0deg);
+			}
+			to {
+				transform: rotate(360deg);
+			}
+		}
+
 		.overlay {
 			position: absolute;
 			left: 24px;
@@ -142,6 +196,10 @@
 			gap: 8px;
 		}
 
+		.button-row.two-col {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
 		button {
 			border: 1px solid transparent;
 			background: rgba(125, 211, 252, 0.08);
@@ -152,6 +210,12 @@
 			font-size: 13px;
 			cursor: pointer;
 			transition: 0.2s ease;
+		}
+
+		button:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+			box-shadow: none;
 		}
 
 		button:hover {
@@ -194,7 +258,7 @@
 			<div class="title">Lodestone</div>
 			<div class="subtitle">
 				Rendering a Minecraft Litematic build using the bundled default pack.
-				Drag to orbit, scroll to zoom, and switch lighting presets.
+				Drag to orbit, scroll to zoom, and cycle between builds.
 			</div>
 			<div class="tags">
 				<span class="tag">Litematic Loader</span>
@@ -204,8 +268,14 @@
 		</header>
 
 		<section class="stage">
-			<div class="panel">
+			<div class="panel" id="render-panel">
 				<canvas id="structure-display" width="1200" height="720"></canvas>
+				<div class="loading" id="loading" aria-live="polite">
+					<div class="loading-card">
+						<span class="loading-spinner" aria-hidden="true"></span>
+						<span class="loading-text" id="loading-text">Loading...</span>
+					</div>
+				</div>
 				<div class="overlay">Drag to orbit · Scroll to zoom</div>
 			</div>
 
@@ -223,15 +293,19 @@
 					<h3>Build Info</h3>
 					<div class="stat">
 						<span>Name</span>
-						<span>Dark Fortress</span>
+						<span id="build-name">Dark Fortress</span>
 					</div>
 					<div class="stat">
 						<span>Author</span>
-						<span>Raaamseeel</span>
+						<span id="build-author">Raaamseeel</span>
 					</div>
 					<div class="stat">
 						<span>Blocks</span>
 						<span id="block-count">–</span>
+					</div>
+					<div class="button-row two-col">
+						<button id="prev-build">Previous</button>
+						<button id="next-build">Next</button>
 					</div>
 				</div>
 
@@ -247,14 +321,14 @@
 					</div>
 					<div class="stat">
 						<span>Size</span>
-						<span>97×156×104</span>
+						<span id="build-size">97×156×104</span>
 					</div>
 				</div>
 			</div>
 		</section>
 
 		<footer>
-			Lodestone demo — rendering "Dark Fortress" by Raaamseeel using the Litematic loader.
+			<span id="build-footer">Lodestone demo — rendering "Dark Fortress" by Raaamseeel using the Litematic loader.</span>
 		</footer>
 	</main>
 	<script src="./main.ts" type="module"></script>

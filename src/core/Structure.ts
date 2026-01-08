@@ -16,17 +16,27 @@ export class Structure implements StructureProvider {
 	public static readonly EMPTY = new Structure(BlockPos.ZERO)
 
 	private blocksMap: StoredBlock[] = []
+	private readonly xStride: number
+	private readonly yStride: number
+	private placedBlocksCache: PlacedBlock[] | null = null
+	private placedBlocksMapCache: (PlacedBlock | undefined)[] | null = null
+	private readonly paletteIndex = new Map<string, number>()
 
 	constructor(
 		private readonly size: BlockPos,
 		private readonly palette: BlockState[] = [],
 		private readonly blocks: StoredBlock[] = []
 	) {
+		this.xStride = size[1] * size[2]
+		this.yStride = size[2]
+		this.palette.forEach((state, index) => {
+			this.paletteIndex.set(state.toString(), index)
+		})
 		blocks.forEach(block => {
 			if (!this.isInside(block.pos)) {
 				throw new Error(`Found block at ${block.pos} which is outside the structure bounds ${this.size}`)
 			}
-			this.blocksMap[block.pos[0] * size[1] * size[2] + block.pos[1] * size[2] + block.pos[2]] = block
+			this.blocksMap[this.getIndex(block.pos)] = block
 		})
 	}
 
@@ -39,25 +49,35 @@ export class Structure implements StructureProvider {
 			throw new Error(`Cannot add block at ${pos} outside the structure bounds ${this.size}`)
 		}
 		const blockState = new BlockState(name, properties)
-		let state = this.palette.findIndex(b => b.equals(blockState))
-		if (state === -1) {
+		const key = blockState.toString()
+		let state = this.paletteIndex.get(key)
+		if (state === undefined) {
 			state = this.palette.length
 			this.palette.push(blockState)
+			this.paletteIndex.set(key, state)
 		}
-		this.blocks.push({ pos, state, nbt })
-		this.blocksMap[pos[0] * this.size[1] * this.size[2] + pos[1] * this.size[2] + pos[2]] = { pos, state, nbt }
+		const stored = { pos, state, nbt }
+		this.blocks.push(stored)
+		const index = this.getIndex(pos)
+		this.blocksMap[index] = stored
+		if (this.placedBlocksCache && this.placedBlocksMapCache) {
+			const placed = this.toPlacedBlock(stored)
+			this.placedBlocksCache.push(placed)
+			this.placedBlocksMapCache[index] = placed
+		}
 		return this
 	}
 
 	public getBlocks(): PlacedBlock[] {
-		return this.blocks.map(b => this.toPlacedBlock(b))
+		this.ensurePlacedCaches()
+		return this.placedBlocksCache ?? []
 	}
 
 	public getBlock(pos: BlockPos): PlacedBlock | null {
 		if (!this.isInside(pos)) return null
-		const block = this.blocksMap[pos[0] * this.size[1] * this.size[2] + pos[1] * this.size[2] + pos[2]]
-		if (!block) return null
-		return this.toPlacedBlock(block)
+		this.ensurePlacedCaches()
+		const block = this.placedBlocksMapCache?.[this.getIndex(pos)]
+		return block ?? null
 	}
 
 	private toPlacedBlock(block: StoredBlock): PlacedBlock {
@@ -76,6 +96,21 @@ export class Structure implements StructureProvider {
 		return pos[0] >= 0 && pos[0] < this.size[0]
 			&& pos[1] >= 0 && pos[1] < this.size[1]
 			&& pos[2] >= 0 && pos[2] < this.size[2]
+	}
+
+	private getIndex(pos: BlockPos) {
+		return pos[0] * this.xStride + pos[1] * this.yStride + pos[2]
+	}
+
+	private ensurePlacedCaches() {
+		if (this.placedBlocksCache && this.placedBlocksMapCache) return
+		this.placedBlocksCache = []
+		this.placedBlocksMapCache = []
+		for (const block of this.blocks) {
+			const placed = this.toPlacedBlock(block)
+			this.placedBlocksCache.push(placed)
+			this.placedBlocksMapCache[this.getIndex(block.pos)] = placed
+		}
 	}
 
 	public static fromNbt(nbt: NbtCompound) {

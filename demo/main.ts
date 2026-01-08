@@ -37,6 +37,12 @@ type SunlightPreset = {
 	},
 }
 
+type DemoBuild = {
+	name: string,
+	author: string,
+	file: string,
+}
+
 const SUNLIGHT_PRESETS: Record<TimePreset, SunlightPreset> = {
 	night: {
 		direction: vec3.fromValues(0.3, -0.8, 0.4),
@@ -130,6 +136,30 @@ const SUNLIGHT_PRESETS: Record<TimePreset, SunlightPreset> = {
 	},
 }
 
+const DEMO_BUILDS: DemoBuild[] = [
+	{
+		name: 'Dark Fortress',
+		author: 'Raaamseeel',
+		file: 'dark-fortress.litematic',
+	},
+	{
+		name: '19640',
+		author: 'abfielder',
+		file: '19640-from-abfielder.litematic',
+	},
+	{
+		name: 'Cathedral Final V1.0',
+		author: 'abfielder',
+		file: 'cathedral-final-v1.0-from-abfielder.litematic',
+	},
+]
+const MAX_RENDER_SCALE = 1.5
+const MIN_RENDER_SCALE = 0.6
+const TARGET_FRAME_MS = 1000 / 60
+const SCALE_ADJUST_INTERVAL_MS = 500
+const SCALE_STEP_UP = 0.05
+const SCALE_STEP_DOWN = 0.1
+
 class OrbitCamera {
 	private xRotation = 0.5
 	private yRotation = 0.9
@@ -171,8 +201,8 @@ class OrbitCamera {
 	}
 }
 
-async function loadLitematic(): Promise<Structure> {
-	const response = await fetch(new URL('./public/dark-fortress.litematic', import.meta.url).toString())
+async function loadLitematic(build: DemoBuild): Promise<Structure> {
+	const response = await fetch(new URL(`./public/${build.file}`, import.meta.url).toString())
 	const buffer = await response.arrayBuffer()
 	return LitematicLoader.load(new Uint8Array(buffer))
 }
@@ -180,7 +210,16 @@ async function loadLitematic(): Promise<Structure> {
 async function runDemo() {
 	const canvas = document.getElementById('structure-display') as HTMLCanvasElement
 	const blockCountEl = document.getElementById('block-count') as HTMLSpanElement
-	if (!canvas || !blockCountEl) return
+	const buildNameEl = document.getElementById('build-name') as HTMLSpanElement
+	const buildAuthorEl = document.getElementById('build-author') as HTMLSpanElement
+	const buildSizeEl = document.getElementById('build-size') as HTMLSpanElement
+	const buildFooterEl = document.getElementById('build-footer') as HTMLSpanElement
+	const prevBuildButton = document.getElementById('prev-build') as HTMLButtonElement
+	const nextBuildButton = document.getElementById('next-build') as HTMLButtonElement
+	const panelEl = document.getElementById('render-panel') as HTMLDivElement
+	const loadingEl = document.getElementById('loading') as HTMLDivElement
+	const loadingTextEl = document.getElementById('loading-text') as HTMLSpanElement
+	if (!canvas || !blockCountEl || !buildNameEl || !buildAuthorEl || !buildSizeEl || !buildFooterEl || !prevBuildButton || !nextBuildButton || !panelEl || !loadingEl || !loadingTextEl) return
 
 	const baseUrl = new URL('./default-pack/', import.meta.url).toString()
 	const { resources } = await loadDefaultPackResources({ baseUrl })
@@ -189,44 +228,129 @@ async function runDemo() {
 	let renderer: ThreeStructureRenderer | null = null
 	let camera: OrbitCamera | null = null
 	let structure: Structure | null = null
+	let buildIndex = 0
+	let loadToken = 0
+	let renderScale = Math.min(devicePixelRatio, MAX_RENDER_SCALE)
 
 	const resizeRenderer = () => {
 		if (!renderer) return
 		const rect = canvas.getBoundingClientRect()
-		canvas.width = Math.max(1, Math.floor(rect.width * devicePixelRatio))
-		canvas.height = Math.max(1, Math.floor(rect.height * devicePixelRatio))
-		renderer.setViewport(0, 0, canvas.width, canvas.height)
+		const scale = Math.min(devicePixelRatio, MAX_RENDER_SCALE, renderScale)
+		renderer.setViewport(0, 0, rect.width, rect.height, scale)
 	}
 
-	const createRenderer = (preset: TimePreset) => {
+	const ensureRenderer = (preset: TimePreset) => {
 		if (!structure) return
-		renderer?.dispose()
-		renderer = new ThreeStructureRenderer(canvas, structure, resources, {
-			chunkSize: 16,
-			drawDistance: 1000,
-			useInvisibleBlockBuffer: false,
-			sunlight: SUNLIGHT_PRESETS[preset],
-		})
+		if (!renderer) {
+			renderer = new ThreeStructureRenderer(canvas, structure, resources, {
+				chunkSize: 16,
+				drawDistance: 1000,
+				useInvisibleBlockBuffer: false,
+				sunlight: SUNLIGHT_PRESETS[preset],
+				asyncBuild: true,
+				asyncChunkBuildTimeMs: 8,
+			})
+		} else {
+			renderer.setSunlight(SUNLIGHT_PRESETS[preset])
+			renderer.setStructure(structure)
+		}
 		resizeRenderer()
 	}
 
-	const loadScene = async () => {
-		structure = await loadLitematic()
-		blockCountEl.textContent = structure.getBlocks().length.toLocaleString()
-		const size = structure.getSize()
-		const center = vec3.fromValues(size[0] / 2, size[1] / 3, size[2] / 2)
-		camera = new OrbitCamera(canvas, center)
-		createRenderer(timePreset)
+	const setBuildLoading = (isLoading: boolean) => {
+		prevBuildButton.disabled = isLoading
+		nextBuildButton.disabled = isLoading
+	}
+
+	const setLoadingState = (isLoading: boolean, message?: string, isBuilding?: boolean) => {
+		loadingEl.classList.toggle('active', isLoading)
+		panelEl.classList.toggle('is-building', Boolean(isLoading && isBuilding))
+		if (message) {
+			loadingTextEl.textContent = message
+		}
+	}
+
+	const updateBuildLabels = (build: DemoBuild, size?: vec3) => {
+		buildNameEl.textContent = build.name
+		buildAuthorEl.textContent = build.author
+		if (size) {
+			buildSizeEl.textContent = `${size[0]}×${size[1]}×${size[2]}`
+		}
+		buildFooterEl.textContent = `Lodestone demo — rendering "${build.name}" by ${build.author} using the Litematic loader.`
+	}
+
+	const loadScene = async (index = buildIndex) => {
+		const nextIndex = (index + DEMO_BUILDS.length) % DEMO_BUILDS.length
+		const build = DEMO_BUILDS[nextIndex]
+		const token = ++loadToken
+		setBuildLoading(true)
+		setLoadingState(true, 'Loading build...')
+		blockCountEl.textContent = '-'
+		buildSizeEl.textContent = '-'
+		updateBuildLabels(build)
+		try {
+			const nextStructure = await loadLitematic(build)
+			if (token !== loadToken) return
+			structure = nextStructure
+			buildIndex = nextIndex
+			blockCountEl.textContent = structure.getBlocks().length.toLocaleString()
+			const size = structure.getSize()
+			updateBuildLabels(build, size)
+			const center = vec3.fromValues(size[0] / 2, size[1] / 3, size[2] / 2)
+			camera = new OrbitCamera(canvas, center)
+			setLoadingState(true, 'Building meshes...', true)
+			ensureRenderer(timePreset)
+			const activeRenderer = renderer
+			if (activeRenderer) {
+				await activeRenderer.whenReady()
+				if (token !== loadToken) return
+			}
+		} catch (err) {
+			if (token !== loadToken) return
+			console.error('[lodestone demo] failed to load build', err)
+		} finally {
+			if (token === loadToken) {
+				setBuildLoading(false)
+				setLoadingState(false)
+			}
+		}
 	}
 
 	await loadScene()
 
-	const renderLoop = () => {
+	let lastFrameTime = 0
+	let lastScaleAdjust = 0
+	let frameTimeAccum = 0
+	let frameSamples = 0
+
+	const renderLoop = (time: number) => {
 		if (!renderer || !camera) return
+		if (lastFrameTime) {
+			const delta = time - lastFrameTime
+			frameTimeAccum += delta
+			frameSamples += 1
+		}
+		lastFrameTime = time
+
+		if (time - lastScaleAdjust >= SCALE_ADJUST_INTERVAL_MS && frameSamples > 0) {
+			const averageFrameTime = frameTimeAccum / frameSamples
+			const maxScale = Math.min(devicePixelRatio, MAX_RENDER_SCALE)
+			if (averageFrameTime > TARGET_FRAME_MS * 1.35 && renderScale > MIN_RENDER_SCALE) {
+				renderScale = Math.max(MIN_RENDER_SCALE, renderScale - SCALE_STEP_DOWN)
+				resizeRenderer()
+			} else if (averageFrameTime < TARGET_FRAME_MS * 0.85 && renderScale < maxScale) {
+				renderScale = Math.min(maxScale, renderScale + SCALE_STEP_UP)
+				resizeRenderer()
+			}
+			frameTimeAccum = 0
+			frameSamples = 0
+			lastScaleAdjust = time
+		}
+
 		renderer.drawStructure(camera.getView())
 		requestAnimationFrame(renderLoop)
 	}
-	renderLoop()
+	requestAnimationFrame(renderLoop)
 
 	const resizeObserver = new ResizeObserver(() => {
 		resizeRenderer()
@@ -239,8 +363,16 @@ async function runDemo() {
 			if (!preset || preset === timePreset) return
 			timePreset = preset
 			document.querySelectorAll<HTMLButtonElement>('button[data-time]').forEach(btn => btn.classList.toggle('active', btn === button))
-			createRenderer(timePreset)
+			renderer?.setSunlight(SUNLIGHT_PRESETS[preset])
 		})
+	})
+
+	prevBuildButton.addEventListener('click', () => {
+		void loadScene(buildIndex - 1)
+	})
+
+	nextBuildButton.addEventListener('click', () => {
+		void loadScene(buildIndex + 1)
 	})
 }
 

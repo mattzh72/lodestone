@@ -51,10 +51,15 @@ export class LitematicLoader {
 	private static loadRegion(region: NbtCompound): Structure {
 		// Get region size
 		const sizeNbt = region.getCompound('Size')
-		const size: BlockPos = [
+		const rawSize: BlockPos = [
 			sizeNbt.getNumber('x') ?? 0,
 			sizeNbt.getNumber('y') ?? 0,
 			sizeNbt.getNumber('z') ?? 0,
+		]
+		const size: BlockPos = [
+			Math.abs(rawSize[0]),
+			Math.abs(rawSize[1]),
+			Math.abs(rawSize[2]),
 		]
 
 		// Get position (offset) - currently unused but available for future use
@@ -96,33 +101,24 @@ export class LitematicLoader {
 		// Calculate bits per block
 		const bitsPerBlock = Math.max(2, Math.ceil(Math.log2(palette.length)))
 
-		// Create structure
-		const structure = new Structure(size)
-
 		// Unpack block states using the correct algorithm
 		const blocks = this.unpackBlockData(blockStates, bitsPerBlock, size[0], size[1], size[2])
+		const isAir = palette.map(state => state.is('minecraft:air'))
+		const storedBlocks: { pos: BlockPos, state: number }[] = []
 
 		// Place blocks - blocks is [x][y][z]
 		for (let x = 0; x < size[0]; x++) {
 			for (let y = 0; y < size[1]; y++) {
 				for (let z = 0; z < size[2]; z++) {
 					const paletteIndex = blocks[x][y][z]
-					if (paletteIndex >= 0 && paletteIndex < palette.length) {
-						const blockState = palette[paletteIndex]
-						// Skip air blocks to save memory
-						if (!blockState.is('minecraft:air')) {
-							structure.addBlock(
-								[x, y, z],
-								blockState.getName(),
-								blockState.getProperties()
-							)
-						}
+					if (paletteIndex >= 0 && paletteIndex < palette.length && !isAir[paletteIndex]) {
+						storedBlocks.push({ pos: [x, y, z], state: paletteIndex })
 					}
 				}
 			}
 		}
 
-		return structure
+		return new Structure(size, palette, storedBlocks)
 	}
 
 	/**
