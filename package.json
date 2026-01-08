@@ -1,6 +1,6 @@
 {
   "name": "@mattzh72/lodestone",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Rendering and core utilities for programmatic Minecraft scenes (Three.js + WebGL)",
   "keywords": [
     "minecraft",
