@@ -22,6 +22,7 @@ Build interactive Minecraft structure viewers, schematic editors, world previews
 - **Advanced rendering** — Chunked meshing with occlusion culling, transparency sorting, and emissive block support
 - **Universal runtime** — Runs in browsers and headless environments with WebGL
 - **Full type safety** — Written in TypeScript with complete type definitions
+- **Code Agent Friendly** - See [MinecraftLM](https://github.com/mattzh72/minecraftlm)
 
 ## Installation
 
