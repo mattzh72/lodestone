@@ -58,6 +58,14 @@ describe('BlockState', () => {
 		expect(stateA).toEqual(stateB)
 	})
 
+	it('toNbt (no properties)', () => {
+		const state = new BlockState('stone')
+
+		expect(state.toNbt()).toEqual(new NbtCompound()
+			.set('Name', new NbtString('minecraft:stone')))
+		expect(BlockState.fromNbt(state.toNbt())).toEqual(state)
+	})
+
 	it('fromNbt (properties)', () => {
 		const nbt = new NbtCompound()
 			.set('Name', new NbtString('minecraft:piston'))
@@ -68,6 +76,17 @@ describe('BlockState', () => {
 		const stateB = new BlockState('piston', { extended: 'false', facing: 'up' })
 
 		expect(stateA).toEqual(stateB)
+	})
+
+	it('toNbt (properties)', () => {
+		const state = new BlockState('piston', { facing: 'up', extended: 'false' })
+
+		expect(state.toNbt()).toEqual(new NbtCompound()
+			.set('Name', new NbtString('minecraft:piston'))
+			.set('Properties', new NbtCompound()
+				.set('extended', new NbtString('false'))
+				.set('facing', new NbtString('up'))))
+		expect(BlockState.fromNbt(state.toNbt())).toEqual(state)
 	})
 
 	it('fromJson (no properties)', () => {

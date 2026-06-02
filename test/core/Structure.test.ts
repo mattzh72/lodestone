@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BlockState, Identifier, Structure } from '../../src/core/index.js'
-import { NbtCompound, NbtInt, NbtList, NbtString } from '../../src/nbt/index.js'
+import { NbtCompound, NbtFile, NbtInt, NbtList, NbtString, NbtType } from '../../src/nbt/index.js'
 
 describe('Structure', () => {
 	it('getSize', () => {
@@ -91,5 +91,41 @@ describe('Structure', () => {
 		const structureB = new Structure([1, 2, 1])
 			.addBlock([0, 0, 0], 'jigsaw', { orientation: 'east_up' })
 		expect(structureA).toEqual(structureB)
+	})
+
+	it('toNbt', () => {
+		const blockNbt = new NbtCompound()
+			.set('id', new NbtString('minecraft:chest'))
+		const structure = new Structure([2, 2, 1])
+			.addBlock([0, 0, 0], 'minecraft:stone')
+			.addBlock([1, 0, 0], 'minecraft:piston', { facing: 'up', extended: 'false' })
+			.addBlock([0, 1, 0], 'minecraft:chest', undefined, blockNbt)
+
+		const nbt = structure.toNbt({ dataVersion: 3210 })
+
+		expect(nbt.getNumber('DataVersion')).toEqual(3210)
+		expect(nbt.getList('size').map(tag => tag.getAsNumber())).toEqual([2, 2, 1])
+		expect(nbt.getList('entities').length).toEqual(0)
+		expect(nbt.getList('palette', NbtType.Compound).map(tag => BlockState.fromNbt(tag).toString())).toEqual([
+			'minecraft:stone',
+			'minecraft:piston[extended=false,facing=up]',
+			'minecraft:chest',
+		])
+		const blocks = nbt.getList('blocks', NbtType.Compound)
+		expect(blocks.length).toEqual(3)
+		expect(blocks.getCompound(2).getCompound('nbt')).toEqual(blockNbt)
+		expect(Structure.fromNbt(nbt)).toEqual(structure)
+	})
+
+	it('writeNbt', () => {
+		const structure = new Structure([1, 1, 1])
+			.addBlock([0, 0, 0], 'minecraft:stone')
+
+		const bytes = structure.writeNbt({ dataVersion: 3210 })
+		const file = NbtFile.read(bytes)
+
+		expect(file.compression).toEqual('gzip')
+		expect(file.root.getNumber('DataVersion')).toEqual(3210)
+		expect(Structure.fromNbt(file.root)).toEqual(structure)
 	})
 })

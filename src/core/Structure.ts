@@ -1,5 +1,5 @@
-import type { NbtCompound } from '../nbt/index.js'
-import { NbtType } from '../nbt/index.js'
+import type { NbtCompressionMode } from '../nbt/index.js'
+import { NbtCompound, NbtFile, NbtInt, NbtList, NbtType } from '../nbt/index.js'
 import { BlockPos } from './BlockPos.js'
 import { BlockState } from './BlockState.js'
 import type { Identifier } from './Identifier.js'
@@ -9,6 +9,15 @@ import type { StructureProvider } from './StructureProvider.js'
 
 type StoredBlock = { pos: BlockPos, state: number, nbt?: NbtCompound }
 export type PlacedBlock = { pos: BlockPos, state: BlockState, nbt?: NbtCompound }
+
+export interface StructureNbtOptions {
+	dataVersion?: number
+}
+
+export interface StructureNbtWriteOptions extends StructureNbtOptions {
+	name?: string
+	compression?: NbtCompressionMode
+}
 
 export class Structure implements StructureProvider {
 	public static readonly REGISTRY = Registry.createAndRegister<Structure>('structures')
@@ -118,6 +127,50 @@ export class Structure implements StructureProvider {
 	private clearPlacedCaches() {
 		this.placedBlocksCache = null
 		this.placedBlocksMapCache = null
+	}
+
+	public toNbt(options: StructureNbtOptions = {}) {
+		const palette: BlockState[] = []
+		const paletteIndex = new Map<string, number>()
+		const blocks = this.blocks.map(storedBlock => {
+			const block = this.toPlacedBlock(storedBlock)
+			const key = block.state.toString()
+			let state = paletteIndex.get(key)
+			if (state === undefined) {
+				state = palette.length
+				palette.push(block.state)
+				paletteIndex.set(key, state)
+			}
+			const tag = new NbtCompound()
+				.set('pos', BlockPos.toNbt(block.pos))
+				.set('state', new NbtInt(state))
+			if (block.nbt && block.nbt.size > 0) {
+				tag.set('nbt', block.nbt)
+			}
+			return tag
+		})
+
+		const nbt = new NbtCompound()
+			.set('size', BlockPos.toNbt(this.size))
+			.set('palette', new NbtList(palette.map(state => state.toNbt())))
+			.set('blocks', new NbtList(blocks))
+			.set('entities', new NbtList())
+
+		if (options.dataVersion !== undefined) {
+			nbt.set('DataVersion', new NbtInt(options.dataVersion))
+		}
+		return nbt
+	}
+
+	public writeNbt(options: StructureNbtWriteOptions = {}) {
+		const file = new NbtFile(
+			options.name ?? '',
+			this.toNbt(options),
+			options.compression ?? 'gzip',
+			false,
+			undefined,
+		)
+		return file.write()
 	}
 
 	public static fromNbt(nbt: NbtCompound) {

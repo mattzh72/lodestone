@@ -1,4 +1,4 @@
-import type { NbtCompound } from '../nbt/index.js'
+import { NbtCompound, NbtString } from '../nbt/index.js'
 import { Json } from '../util/index.js'
 import { Identifier } from './Identifier.js'
 
@@ -68,6 +68,16 @@ export class BlockState {
 			return this.name.toString()
 		}
 		return `${this.name.toString()}[${Object.entries(this.properties).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => k + '=' + v).join(',')}]`
+	}
+
+	public toNbt() {
+		const nbt = new NbtCompound()
+			.set('Name', new NbtString(this.name.toString()))
+		const properties = Object.entries(this.properties).sort(([a], [b]) => a.localeCompare(b))
+		if (properties.length > 0) {
+			nbt.set('Properties', new NbtCompound(new Map(properties.map(([key, value]) => [key, new NbtString(value)]))))
+		}
+		return nbt
 	}
 
 	public static parse(str: string) {
