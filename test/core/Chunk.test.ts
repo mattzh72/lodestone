@@ -28,4 +28,15 @@ describe('Chunk', () => {
 		expect(chunk.getBlockState([3, 1, 2]).toString()).toEqual(new BlockState('minecraft:stone').toString())
 		expect(chunk.getBlockState([5, 1, 2]).toString()).toEqual(BlockState.AIR.toString())
 	})
+
+	it('guards vertical bounds', () => {
+		const chunk = new Chunk(-16, 64, ChunkPos.create(4, 1))
+
+		expect(chunk.getBlockState([0, -17, 0])).toEqual(BlockState.AIR)
+		expect(chunk.getBlockState([0, 48, 0])).toEqual(BlockState.AIR)
+		expect(() => chunk.setBlockState([0, -17, 0], new BlockState('stone'))).toThrow()
+		expect(() => chunk.setBlockState([0, 48, 0], new BlockState('stone'))).toThrow()
+		expect(() => chunk.getOrCreateSection(-1)).toThrow()
+		expect(() => chunk.getOrCreateSection(chunk.sectionsCount)).toThrow()
+	})
 })

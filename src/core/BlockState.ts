@@ -44,7 +44,11 @@ export class BlockState {
 		if (!this.name.equals(other.name)) {
 			return false
 		}
-		return Object.keys(this.properties).every(p => {
+		const keys = Object.keys(this.properties)
+		if (keys.length !== Object.keys(other.properties).length) {
+			return false
+		}
+		return keys.every(p => {
 			return other.properties[p] === this.properties[p]
 		})
 	}
@@ -63,7 +67,7 @@ export class BlockState {
 		if (Object.keys(this.properties).length === 0) {
 			return this.name.toString()
 		}
-		return `${this.name.toString()}[${Object.entries(this.properties).map(([k, v]) => k + '=' + v).join(',')}]`
+		return `${this.name.toString()}[${Object.entries(this.properties).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => k + '=' + v).join(',')}]`
 	}
 
 	public static parse(str: string) {

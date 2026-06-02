@@ -94,6 +94,14 @@ describe('HolderSet', () => {
 		expect(entries).toContain('minecraft:test2')
 	})
 
+	it('parser single value', () => {
+		const parser = HolderSet.parser(REGISTRY)
+
+		const set = parser('minecraft:test1').value()
+		const entries = [...set.getEntries()].map(b => b.key()?.toString())
+		expect(entries).toEqual(['minecraft:test1'])
+	})
+
 	it('parser list', () => {
 		const parser = HolderSet.parser(REGISTRY)
 

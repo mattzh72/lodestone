@@ -1,4 +1,6 @@
 export class PalettedContainer<T extends Equalable> {
+	private static readonly WIDTH = 16
+
 	private readonly storage: number[]
 	private readonly palette: T[]
 
@@ -11,7 +13,14 @@ export class PalettedContainer<T extends Equalable> {
 	}
 
 	private index(x: number, y: number, z: number) {
+		if (!this.isLocalCoordinate(x) || !this.isLocalCoordinate(y) || !this.isLocalCoordinate(z)) {
+			throw new Error(`Coordinates ${x},${y},${z} are outside paletted container bounds 0..15`)
+		}
 		return (x << 8) + (y << 4) + z
+	}
+
+	private isLocalCoordinate(value: number) {
+		return Number.isInteger(value) && value >= 0 && value < PalettedContainer.WIDTH
 	}
 
 	public get(x: number, y: number, z: number) {

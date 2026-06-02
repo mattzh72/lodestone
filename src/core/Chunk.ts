@@ -4,7 +4,7 @@ import type { ChunkPos } from './ChunkPos.js'
 import { ChunkSection } from './ChunkSection.js'
 
 export class Chunk {
-	public sections: ChunkSection[]
+	public sections: (ChunkSection | null)[]
 
 	constructor(
 		public readonly minY: number,
@@ -36,12 +36,16 @@ export class Chunk {
 
 	public getBlockState(pos: BlockPos): BlockState {
 		const [x, y, z] = pos
+		if (!this.isYInside(y)) return BlockState.AIR
 		const section = this.sections[this.getSectionIndex(y)]
 		return section?.getBlockState(x & 0xF, y & 0xF, z & 0xF) ?? BlockState.AIR
 	}
 
 	public setBlockState(pos: BlockPos, state: BlockState) {
 		const [x, y, z] = pos
+		if (!this.isYInside(y)) {
+			throw new Error(`Cannot set block at y=${y} outside chunk bounds ${this.minY}..${this.maxY - 1}`)
+		}
 		const sectionIndex = this.getSectionIndex(y)
 		let section = this.sections[sectionIndex]
 		if (section === null) {
@@ -52,9 +56,16 @@ export class Chunk {
 	}
 
 	public getOrCreateSection(index: number): ChunkSection {
+		if (index < 0 || index >= this.sectionsCount) {
+			throw new Error(`Section index ${index} is outside chunk section bounds 0..${this.sectionsCount - 1}`)
+		}
 		if (this.sections[index] == null) {
 			this.sections[index] = new ChunkSection(this.minSection + index)
 		}
-		return this.sections[index]
+		return this.sections[index] as ChunkSection
+	}
+
+	private isYInside(y: number) {
+		return y >= this.minY && y < this.maxY
 	}
 }

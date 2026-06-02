@@ -17,7 +17,7 @@ export class HolderSet<T>{
 				if (obj.startsWith('#')) {
 					return Holder.reference(registry.getTagRegistry(), Identifier.parse(obj.substring(1)))
 				} else {
-					return Holder.direct(new HolderSet<T>([]))
+					return Holder.direct(new HolderSet<T>([defaultedValueParser(obj)]))
 				}
 			} else  {
 				return Holder.direct(new HolderSet(Json.readArray(obj, defaultedValueParser) ?? []) ?? [])

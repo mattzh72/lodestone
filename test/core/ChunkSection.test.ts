@@ -19,4 +19,10 @@ describe('ChunkSection', () => {
 		expect(section.getBlockState(3, 1, 2)).toEqual(new BlockState('stone'))
 		expect(section.getBlockState(5, 1, 2)).toEqual(BlockState.AIR)
 	})
+
+	it('rejects invalid local coordinates', () => {
+		const section = new ChunkSection(0)
+		expect(() => section.getBlockState(0, 16, 0)).toThrow()
+		expect(() => section.setBlockState(-1, 0, 0, new BlockState('stone'))).toThrow()
+	})
 })

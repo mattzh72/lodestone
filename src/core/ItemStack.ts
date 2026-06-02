@@ -103,20 +103,37 @@ export class ItemStack {
 
 	public static fromString(string: string) {
 		const reader = new StringReader(string)
-		
-		while (reader.canRead() && reader.peek() !== '[') {
+
+		reader.skipWhitespace()
+		const idStart = reader.cursor
+		while (reader.canRead() && reader.peek() !== '[' && !StringReader.isWhitespace(reader.peek())) {
 			reader.skip()
 		}
-		const itemId = Identifier.parse(reader.getRead())
-		if (!reader.canRead()){
-			return new ItemStack(itemId, 1)
+		const itemId = Identifier.parse(reader.getRead(idStart))
+		const components = new Map<string, NbtTag>()
+
+		reader.skipWhitespace()
+		if (reader.canRead() && reader.peek() === '[') {
+			ItemStack.readComponents(reader, components)
 		}
 
-		const components = new Map<string, NbtTag>()
-		reader.skip()
-		if (reader.peek() === ']'){
-			return new ItemStack(itemId, 1, components)
+		reader.skipWhitespace()
+		const count = reader.canRead() ? reader.readInt() : 1
+		reader.skipWhitespace()
+		if (reader.canRead()) {
+			throw reader.createError('Unexpected trailing data')
 		}
+		return new ItemStack(itemId, count, components)
+	}
+
+	private static readComponents(reader: StringReader, components: Map<string, NbtTag>) {
+		reader.expect('[')
+		reader.skipWhitespace()
+		if (reader.canRead() && reader.peek() === ']') {
+			reader.skip()
+			return
+		}
+
 		do{
 			if (reader.peek() === '!'){
 				reader.skip()
@@ -142,7 +159,8 @@ export class ItemStack {
 			reader.skipWhitespace()
 			if (!reader.canRead()) break
 			if (reader.peek() === ']'){
-				return new ItemStack(itemId, 1, components)
+				reader.skip()
+				return
 			}
 			if (reader.peek() !== ','){
 				throw new Error('Expected , or ]')

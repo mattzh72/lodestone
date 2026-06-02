@@ -36,6 +36,7 @@ describe('BlockState', () => {
 		expect(!stateA.equals(stateC)).true
 		const stateD = new BlockState('piston', { facing: 'up' })
 		expect(!stateA.equals(stateD)).true
+		expect(!stateD.equals(stateA)).true
 		const stateE = new BlockState('piston', { extended: 'false', facing: 'down' })
 		expect(!stateA.equals(stateE)).true
 	})
@@ -43,6 +44,9 @@ describe('BlockState', () => {
 	it('toString', () => {
 		const state = new BlockState('piston', { extended: 'false', facing: 'up' })
 		expect(state.toString()).toEqual('minecraft:piston[extended=false,facing=up]')
+
+		const reversed = new BlockState('piston', { facing: 'up', extended: 'false' })
+		expect(reversed.toString()).toEqual('minecraft:piston[extended=false,facing=up]')
 	})
 
 	it('fromNbt (no properties)', () => {

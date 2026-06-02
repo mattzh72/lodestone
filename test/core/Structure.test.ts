@@ -51,6 +51,18 @@ describe('Structure', () => {
 		expect(blockNames).toEqual([Identifier.create('stone'), Identifier.create('stone'), Identifier.create('jigsaw')])
 	})
 
+	it('addBlock overwrites an existing position without duplicating caches', () => {
+		const structure = new Structure([1, 1, 1])
+			.addBlock([0, 0, 0], 'stone')
+
+		expect(structure.getBlocks()).toHaveLength(1)
+
+		structure.addBlock([0, 0, 0], 'dirt')
+
+		expect(structure.getBlocks()).toHaveLength(1)
+		expect(structure.getBlock([0, 0, 0])?.state).toEqual(new BlockState('dirt'))
+	})
+
 	it('fromNbt (empty)', () => {
 		const nbt = new NbtCompound()
 			.set('size', new NbtList([new NbtInt(0), new NbtInt(0), new NbtInt(0)]))

@@ -56,15 +56,17 @@ export class Structure implements StructureProvider {
 			this.palette.push(blockState)
 			this.paletteIndex.set(key, state)
 		}
-		const stored = { pos, state, nbt }
-		this.blocks.push(stored)
 		const index = this.getIndex(pos)
-		this.blocksMap[index] = stored
-		if (this.placedBlocksCache && this.placedBlocksMapCache) {
-			const placed = this.toPlacedBlock(stored)
-			this.placedBlocksCache.push(placed)
-			this.placedBlocksMapCache[index] = placed
+		const existing = this.blocksMap[index]
+		if (existing) {
+			existing.state = state
+			existing.nbt = nbt
+		} else {
+			const stored = { pos: BlockPos.create(pos[0], pos[1], pos[2]), state, nbt }
+			this.blocks.push(stored)
+			this.blocksMap[index] = stored
 		}
+		this.clearPlacedCaches()
 		return this
 	}
 
@@ -111,6 +113,11 @@ export class Structure implements StructureProvider {
 			this.placedBlocksCache.push(placed)
 			this.placedBlocksMapCache[this.getIndex(block.pos)] = placed
 		}
+	}
+
+	private clearPlacedCaches() {
+		this.placedBlocksCache = null
+		this.placedBlocksMapCache = null
 	}
 
 	public static fromNbt(nbt: NbtCompound) {
