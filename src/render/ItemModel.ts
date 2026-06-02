@@ -310,7 +310,7 @@ export namespace ItemModel {
 					return (item, resources, _context) => {
 						const maxDamage = item.getComponent('max_damage', resources)?.getAsNumber() ?? 0
 						const damage = clamp(item.getComponent('damage', resources)?.getAsNumber() ?? 0, 0, maxDamage)
-						if (normalize) return clamp(damage / maxDamage, 0, 1)
+						if (normalize) return maxDamage > 0 ? clamp(damage / maxDamage, 0, 1) : 0
 						return clamp(damage, 0, maxDamage)
 					}
 				}
@@ -324,8 +324,9 @@ export namespace ItemModel {
 				}
 				case 'cooldown': return (item, resources, context) => {
 					const tag = item.getComponent('use_cooldown', resources)
+					const group = tag?.isCompound() ? tag.getString('cooldown_group') : ''
 					const cooldownGroup = tag?.isCompound()
-						? Identifier.parse(tag.getString('cooldown_group') ?? item.id)
+						? group ? Identifier.parse(group) : item.id
 						: item.id
 					return context.cooldown_percentage?.[cooldownGroup.toString()] ?? 0
 				}
@@ -354,6 +355,7 @@ export namespace ItemModel {
 					const period = Json.readNumber(root.period) ?? 1
 					return (_item, _resources, context) => {
 						if (context.use_duration === undefined || context.use_duration < 0) return 0
+						if (period <= 0) return 0
 						return Math.max((context.max_use_duration ?? 0) - (context.use_duration ?? 0), 0) % period
 					}
 				case 'custom_model_data':

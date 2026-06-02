@@ -276,6 +276,7 @@ describe('ItemModel', () => {
 		const damage_normalized = ItemModel.RangeDispatch.propertyFromJson({property: 'damage', normalize: true})
 		expect(damage_normalized(ItemStack.fromString('dummy:dummy[damage=70,max_damage=100]'), resources, {})).toEqual(0.7)
 		expect(damage_normalized(ItemStack.fromString('dummy:dummy[damage=120,max_damage=100]'), resources, {})).toEqual(1)
+		expect(damage_normalized(ItemStack.fromString('dummy:dummy[damage=1]'), resources, {})).toEqual(0)
 
 		const count = ItemModel.RangeDispatch.propertyFromJson({property: 'count', normalize: false})
 		const count_normalized = ItemModel.RangeDispatch.propertyFromJson({property: 'count', normalize: true})
@@ -292,6 +293,10 @@ describe('ItemModel', () => {
 		const cooldown = ItemModel.RangeDispatch.propertyFromJson({property: 'cooldown'})
 		expect(cooldown(dummyItem, resources, {cooldown_percentage: {'dummy:dummy': 0.7}})).toEqual(0.7)
 		expect(cooldown(ItemStack.fromString('dummy:dummy[use_cooldown={cooldown_group:"test"}]'), resources, {cooldown_percentage: {'minecraft:test': 0.6}})).toEqual(0.6)
+		expect(cooldown(ItemStack.fromString('dummy:dummy[use_cooldown={}]'), resources, {cooldown_percentage: {'dummy:dummy': 0.5}})).toEqual(0.5)
+
+		const use_cycle_zero = ItemModel.RangeDispatch.propertyFromJson({property: 'use_cycle', period: 0})
+		expect(use_cycle_zero(dummyItem, resources, {use_duration: 1, max_use_duration: 10})).toEqual(0)
 
 		const custom_model_data = ItemModel.RangeDispatch.propertyFromJson({property: 'custom_model_data', index: 1})
 		expect(custom_model_data(ItemStack.fromString('dummy:dummy[custom_model_data={floats:[0.7, 0.4]}]'), resources, {})).toEqual(0.4)

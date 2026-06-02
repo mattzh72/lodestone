@@ -340,10 +340,10 @@ export class ChunkBuilder {
 	private getBlockProps(state: BlockState) {
 		const cached = this.blockPropsCache.get(state)
 		if (cached) return cached
-		const props = state.getProperties()
+		const props = { ...state.getProperties() }
 		const defaultProps = this.resources.getDefaultBlockProperties(state.getName()) ?? {}
 		Object.entries(defaultProps).forEach(([k, v]) => {
-			if (!props[k]) props[k] = v
+			if (props[k] === undefined) props[k] = v
 		})
 		this.blockPropsCache.set(state, props)
 		return props

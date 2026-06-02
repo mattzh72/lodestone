@@ -350,7 +350,7 @@ function meshToBufferGeometry(mesh: Mesh) {
 	geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
 	geometry.setAttribute('blockPos', new THREE.Float32BufferAttribute(blockPositions, 3))
 	geometry.setAttribute('emissive', new THREE.Float32BufferAttribute(emissives, 1))
-	const indexArray = indices.length > 65535 ? new Uint32Array(indices) : new Uint16Array(indices)
+	const indexArray = positions.length / 3 > 0x10000 ? new Uint32Array(indices) : new Uint16Array(indices)
 	geometry.setIndex(new THREE.BufferAttribute(indexArray, 1))
 	geometry.computeBoundingSphere()
 	return geometry

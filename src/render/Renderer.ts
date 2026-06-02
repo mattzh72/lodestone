@@ -141,7 +141,7 @@ export class Renderer {
 			if (!mesh.indexBuffer) throw new Error('Expected index buffer')
 			this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, mesh.indexBuffer)
 	
-			this.gl.drawElements(this.gl.TRIANGLES, mesh.quadIndices(), this.gl.UNSIGNED_SHORT, 0)
+			this.gl.drawElements(this.gl.TRIANGLES, mesh.quadIndices(), mesh.indexType ?? this.gl.UNSIGNED_SHORT, 0)
 		}
 
 		if (mesh.lineVertices() > 0) {
