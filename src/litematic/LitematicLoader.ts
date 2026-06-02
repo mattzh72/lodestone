@@ -34,12 +34,15 @@ export class LitematicLoader {
 
 		// Get the region to load
 		let region: NbtCompound
-		if (regionName) {
+		if (regionName !== undefined) {
+			if (!regions.hasCompound(regionName)) {
+				throw new Error(`Region '${regionName}' not found in litematic file`)
+			}
 			region = regions.getCompound(regionName)
 		} else {
 			// Load first region
 			const firstKey = regions.keys()[Symbol.iterator]().next().value
-			if (!firstKey) {
+			if (firstKey === undefined) {
 				throw new Error('No regions found in litematic file')
 			}
 			region = regions.getCompound(firstKey)
@@ -106,15 +109,14 @@ export class LitematicLoader {
 		const isAir = palette.map(state => state.is('minecraft:air'))
 		const storedBlocks: { pos: BlockPos, state: number }[] = []
 
-		// Place blocks - blocks is [x][y][z]
-		for (let x = 0; x < size[0]; x++) {
-			for (let y = 0; y < size[1]; y++) {
-				for (let z = 0; z < size[2]; z++) {
-					const paletteIndex = blocks[x][y][z]
-					if (paletteIndex >= 0 && paletteIndex < palette.length && !isAir[paletteIndex]) {
-						storedBlocks.push({ pos: [x, y, z], state: paletteIndex })
-					}
-				}
+		// Place blocks - packed indices are in YZX order
+		for (let index = 0; index < blocks.length; index += 1) {
+			const paletteIndex = blocks[index]
+			if (paletteIndex >= 0 && paletteIndex < palette.length && !isAir[paletteIndex]) {
+				const x = index % size[0]
+				const y = Math.floor(index / (size[0] * size[2]))
+				const z = Math.floor(index / size[0]) % size[2]
+				storedBlocks.push({ pos: [x, y, z], state: paletteIndex })
 			}
 		}
 
@@ -129,7 +131,7 @@ export class LitematicLoader {
 	 * @param width Region width
 	 * @param height Region height
 	 * @param depth Region depth
-	 * @returns 3D array of block palette indices [x][y][z]
+	 * @returns Flat block palette indices in YZX order
 	 */
 	private static unpackBlockData(
 		regionData: readonly [number, number][],
@@ -137,58 +139,43 @@ export class LitematicLoader {
 		width: number,
 		height: number,
 		depth: number
-	): number[][][] {
+	): number[] {
 		const mask = (1 << nbits) - 1
-		const yShift = Math.abs(width * depth)
-		const zShift = Math.abs(width)
+		const volume = width * height * depth
+		const blocks = new Array<number>(volume)
 
-		const blocks: number[][][] = []
+		for (let index = 0; index < volume; index += 1) {
+			const startOffset = index * nbits
 
-		for (let x = 0; x < Math.abs(width); x++) {
-			blocks[x] = []
-			for (let y = 0; y < Math.abs(height); y++) {
-				blocks[x][y] = []
-				for (let z = 0; z < Math.abs(depth); z++) {
-					// Calculate index using YZX order
-					const index = y * yShift + z * zShift + x
+			// Work with 32-bit boundaries
+			const startArrIndex = startOffset >>> 5 // divide by 32
+			const endArrIndex = ((index + 1) * nbits - 1) >>> 5
+			const startBitOffset = startOffset & 0x1f // % 32
 
-					const startOffset = index * nbits
+			// Handle 64-bit longs stored as [high, low] pairs
+			const halfInd = startArrIndex >>> 1
+			let blockStart: number
+			let blockEnd: number
 
-					// Work with 32-bit boundaries
-					const startArrIndex = startOffset >>> 5 // divide by 32
-					const endArrIndex = ((index + 1) * nbits - 1) >>> 5
-					const startBitOffset = startOffset & 0x1f // % 32
-
-					// Handle 64-bit longs stored as [high, low] pairs
-					const halfInd = startArrIndex >>> 1
-					let blockStart: number
-					let blockEnd: number
-
-					if ((startArrIndex & 0x1) === 0) {
-						// Even index: use low32 as start, high32 as end
-						blockStart = regionData[halfInd][1]
-						blockEnd = regionData[halfInd][0]
-					} else {
-						// Odd index: use high32 as start, next low32 as end
-						blockStart = regionData[halfInd][0]
-						if (halfInd + 1 < regionData.length) {
-							blockEnd = regionData[halfInd + 1][1]
-						} else {
-							blockEnd = 0x0
-						}
-					}
-
-					let value: number
-					if (startArrIndex === endArrIndex) {
-						value = (blockStart >>> startBitOffset) & mask
-					} else {
-						const endOffset = 32 - startBitOffset
-						value = ((blockStart >>> startBitOffset) & mask) | ((blockEnd << endOffset) & mask)
-					}
-
-					blocks[x][y][z] = value
-				}
+			if ((startArrIndex & 0x1) === 0) {
+				// Even index: use low32 as start, high32 as end
+				blockStart = regionData[halfInd]?.[1] ?? 0
+				blockEnd = regionData[halfInd]?.[0] ?? 0
+			} else {
+				// Odd index: use high32 as start, next low32 as end
+				blockStart = regionData[halfInd]?.[0] ?? 0
+				blockEnd = regionData[halfInd + 1]?.[1] ?? 0
 			}
+
+			let value: number
+			if (startArrIndex === endArrIndex) {
+				value = (blockStart >>> startBitOffset) & mask
+			} else {
+				const endOffset = 32 - startBitOffset
+				value = ((blockStart >>> startBitOffset) & mask) | ((blockEnd << endOffset) & mask)
+			}
+
+			blocks[index] = value
 		}
 
 		return blocks
