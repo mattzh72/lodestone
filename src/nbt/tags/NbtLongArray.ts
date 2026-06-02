@@ -32,7 +32,7 @@ export class NbtLongArray extends NbtAbstractList<NbtLong> {
 
 	public override toString() {
 		const entries = this.items.map(e => e.toString())
-		return '[I;' + entries.join(',') + ']'
+		return '[L;' + entries.join(',') + ']'
 	}
 
 	public override toPrettyString() {
@@ -69,6 +69,9 @@ export class NbtLongArray extends NbtAbstractList<NbtLong> {
 
 	public static fromBytes(input: DataInput) {
 		const length = input.readInt()
+		if (length < 0) {
+			throw new Error(`Negative LongArray length ${length}`)
+		}
 		const items: NbtLongPair[] = []
 		for (let i = 0; i < length; i += 1) {
 			items.push([input.readInt(), input.readInt()])

@@ -76,7 +76,12 @@ export class RawDataOutput implements DataOutput {
 
 	public writeString(value: string) {
 		const bytes = encodeUTF8(value)
-		this.writeShort(bytes.length)
+		if (bytes.length > 0xffff) {
+			throw new Error(`NBT strings cannot exceed 65535 bytes; got ${bytes.length}`)
+		}
+		this.accommodate(2)
+		this.view.setUint16(this.offset, bytes.length, this.littleEndian)
+		this.offset += 2
 		this.writeBytes(bytes)
 	}
 

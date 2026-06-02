@@ -64,6 +64,9 @@ export class NbtIntArray extends NbtAbstractList<NbtInt> {
 	
 	public static fromBytes(input: DataInput) {
 		const length = input.readInt()
+		if (length < 0) {
+			throw new Error(`Negative IntArray length ${length}`)
+		}
 		const items = []
 		for (let i = 0; i < length; i += 1) {
 			items.push(input.readInt())

@@ -27,4 +27,11 @@ describe('NbtFile', () => {
 		expect(file.root.getNumber('DataVersion')).toEqual(3210)
 		expect(file.root.getList('entities').length).toEqual(2)
 	})
+
+	it('does not enable bedrock mode when bedrockHeader is false', () => {
+		const file = NbtFile.create({ bedrockHeader: false })
+
+		expect(file.bedrockHeader).toBeUndefined()
+		expect(file.littleEndian).toBeFalsy()
+	})
 })

@@ -36,7 +36,7 @@ export class NbtFile {
 
 	public write() {
 		const littleEndian = this.littleEndian === true || this.bedrockHeader !== undefined
-		const output = new RawDataOutput({ littleEndian, offset: this.bedrockHeader && 8 })
+		const output = new RawDataOutput({ littleEndian, offset: this.bedrockHeader !== undefined ? 8 : 0 })
 		this.writeNamedTag(output)
 
 		if (this.bedrockHeader !== undefined) {
@@ -70,8 +70,10 @@ export class NbtFile {
 		const name = options.name ?? NbtFile.DEFAULT_NAME
 		const root = NbtCompound.create()
 		const compression = options.compression ?? 'none'
-		const bedrockHeader = typeof options.bedrockHeader === 'boolean' ? NbtFile.DEFAULT_BEDROCK_HEADER : options.bedrockHeader
-		const littleEndian = options.littleEndian ?? options.bedrockHeader !== undefined
+		const bedrockHeader = options.bedrockHeader === true
+			? NbtFile.DEFAULT_BEDROCK_HEADER
+			: typeof options.bedrockHeader === 'number' ? options.bedrockHeader : undefined
+		const littleEndian = options.littleEndian ?? bedrockHeader !== undefined
 
 		return new NbtFile(name, root, compression, littleEndian, bedrockHeader)
 	}
@@ -87,7 +89,7 @@ export class NbtFile {
 		const littleEndian = options.littleEndian || bedrockHeader !== undefined
 		const compression = isGzipCompressed ? 'gzip' : isZlibCompressed ? 'zlib' : 'none'
 
-		const input = new RawDataInput(uncompressedData, { littleEndian, offset: bedrockHeader && 8 })
+		const input = new RawDataInput(uncompressedData, { littleEndian, offset: bedrockHeader !== undefined ? 8 : 0 })
 		const { name, root } = NbtFile.readNamedTag(input)
 
 		return new NbtFile(options.name ?? name, root, compression, littleEndian, bedrockHeader)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NbtByte, NbtCompound, NbtInt, NbtIntArray, NbtList, NbtLong, NbtShort, NbtString, NbtTag, RawDataInput, RawDataOutput } from '../../src/nbt'
+import { NbtByte, NbtCompound, NbtInt, NbtIntArray, NbtList, NbtLong, NbtLongArray, NbtShort, NbtString, NbtTag, RawDataInput, RawDataOutput } from '../../src/nbt'
 
 describe('Roundtrip', () => {
 	const TAGS: NbtTag[] = [
@@ -24,6 +24,7 @@ describe('Roundtrip', () => {
 					.set('blah', new NbtShort(12345))
 					.set('AedrfjA', new NbtString('5giojihs')),
 			])),
+		new NbtLongArray([[0, 4], [1, 0], [6024, 269300]]),
 	]
 
 	it.each(TAGS.map(t => [t]))('toBytes/fromBytes', tag => {

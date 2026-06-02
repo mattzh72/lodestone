@@ -169,6 +169,9 @@ export class NbtList<T extends NbtTag = NbtTag> extends NbtAbstractList<T> {
 	public static fromBytes(input: DataInput) {
 		const type = input.readByte()
 		const length = input.readInt()
+		if (length < 0) {
+			throw new Error(`Negative List length ${length}`)
+		}
 		if (type === NbtType.End && length > 0) {
 			throw new Error(`Missing type on ListTag but length is ${length}`)
 		}

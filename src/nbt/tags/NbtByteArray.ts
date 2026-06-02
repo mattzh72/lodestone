@@ -58,6 +58,9 @@ export class NbtByteArray extends NbtAbstractList<NbtByte> {
 
 	public static fromBytes(input: DataInput) {
 		const length = input.readInt()
+		if (length < 0) {
+			throw new Error(`Negative ByteArray length ${length}`)
+		}
 		const items = input.readBytes(length)
 		return new NbtByteArray(items)
 	}
