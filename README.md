@@ -58,6 +58,18 @@ renderer.drawStructure(view)
 
 For a complete example with item rendering and controls, see `demo/main.ts`.
 
+## Documentation
+
+Detailed Markdown docs live in [`docs/`](docs/). Start with:
+
+- [`docs/getting-started.md`](docs/getting-started.md)
+- [`docs/structure.md`](docs/structure.md)
+- [`docs/nbt.md`](docs/nbt.md)
+- [`docs/rendering.md`](docs/rendering.md)
+- [`docs/resources.md`](docs/resources.md)
+- [`docs/supported-fields.md`](docs/supported-fields.md)
+- [`docs/unsupported.md`](docs/unsupported.md)
+
 ## Usage
 
 ### Loading Litematic Files
@@ -91,11 +103,11 @@ Load Three.js first, then Lodestone. The UMD bundle exposes `window.Lodestone`.
 
 ```html
 <script src="https://unpkg.com/three@0.164.1/build/three.min.js"></script>
-<script src="https://unpkg.com/@mattzh72/lodestone@0.5.0/dist/lodestone.umd.cjs"></script>
+<script src="https://unpkg.com/@mattzh72/lodestone@0.6.0/dist/lodestone.umd.cjs"></script>
 <script>
   // Load the built-in default pack from unpkg
   (async () => {
-    const baseUrl = 'https://unpkg.com/@mattzh72/lodestone@0.5.0/assets/default-pack/'
+    const baseUrl = 'https://unpkg.com/@mattzh72/lodestone@0.6.0/assets/default-pack/'
     const { resources } = await Lodestone.loadDefaultPackResources({ baseUrl })
     // ...use resources with ThreeStructureRenderer
   })()
@@ -106,7 +118,7 @@ Load Three.js first, then Lodestone. The UMD bundle exposes `window.Lodestone`.
 
 ```html
 <script src="https://unpkg.com/three@0.164.1/build/three.min.js"></script>
-<script src="https://unpkg.com/@mattzh72/lodestone@0.5.0/dist/lodestone.umd.cjs"></script>
+<script src="https://unpkg.com/@mattzh72/lodestone@0.6.0/dist/lodestone.umd.cjs"></script>
 <script>
   const { Structure, ThreeStructureRenderer } = window.Lodestone
 </script>
