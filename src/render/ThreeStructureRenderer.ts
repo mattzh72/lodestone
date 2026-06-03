@@ -128,6 +128,22 @@ type ThreeStructureRendererOptions = {
 	asyncChunkBuildTimeMs?: number,
 }
 
+type CameraVector = vec3 | [number, number, number]
+
+export type ThreeStructureCameraState = {
+	position: vec3,
+	target: vec3,
+	up: vec3,
+	fov: number,
+}
+
+export type ThreeStructureCameraOptions = {
+	position?: CameraVector,
+	target?: CameraVector,
+	up?: CameraVector,
+	fov?: number,
+}
+
 const makeFloatTexture = (data: Float32Array, width: number, height: number = 1) => {
 	const tex = new THREE.DataTexture(data, Math.max(1, width), Math.max(1, height), THREE.RGBAFormat, THREE.FloatType)
 	tex.needsUpdate = true
@@ -428,6 +444,10 @@ export class ThreeStructureRenderer {
 	private outline?: THREE.LineSegments
 	private readonly chunkSize: vec3
 	private targetCenter: vec3
+	private cameraPosition: vec3
+	private cameraTarget: vec3
+	private cameraUp: vec3
+	private readonly cameraViewMatrix: mat4
 
 	public useInvisibleBlocks: boolean
 	private readonly drawDistance?: number
@@ -469,6 +489,11 @@ export class ThreeStructureRenderer {
 			(this.structure.getSize()[1] ?? 0) / 2,
 			(this.structure.getSize()[2] ?? 0) / 2
 		)
+		this.cameraPosition = vec3.create()
+		this.cameraTarget = vec3.clone(this.targetCenter)
+		this.cameraUp = vec3.fromValues(0, 1, 0)
+		this.cameraViewMatrix = mat4.create()
+		this.resetCamera()
 		this.asyncBuild = options?.asyncBuild ?? false
 		this.asyncChunkBuildTimeMs = options?.asyncChunkBuildTimeMs ?? 8
 		this.chunkBuilder = new ChunkBuilder(gl, structure, resources, chunkSize, !this.asyncBuild)
@@ -542,6 +567,50 @@ export class ThreeStructureRenderer {
 		this.camera.updateProjectionMatrix()
 	}
 
+	public setCamera(options: ThreeStructureCameraOptions) {
+		if (options.position) vec3.copy(this.cameraPosition, options.position)
+		if (options.target) vec3.copy(this.cameraTarget, options.target)
+		if (options.up) vec3.copy(this.cameraUp, options.up)
+		if (options.fov !== undefined) this.setFOV(options.fov)
+		this.updateStoredViewMatrix()
+		return this
+	}
+
+	public getCamera(): ThreeStructureCameraState {
+		return {
+			position: vec3.clone(this.cameraPosition),
+			target: vec3.clone(this.cameraTarget),
+			up: vec3.clone(this.cameraUp),
+			fov: this.camera.fov,
+		}
+	}
+
+	public getViewMatrix() {
+		return mat4.clone(this.cameraViewMatrix)
+	}
+
+	public lookAt(position: CameraVector, target: CameraVector, up?: CameraVector) {
+		return this.setCamera({ position, target, up })
+	}
+
+	public setCameraPosition(position: CameraVector) {
+		return this.setCamera({ position })
+	}
+
+	public setCameraTarget(target: CameraVector) {
+		return this.setCamera({ target })
+	}
+
+	public resetCamera() {
+		const size = this.structure.getSize()
+		const distance = Math.max(8, Math.max(size[0], size[1], size[2]) * 1.8)
+		return this.setCamera({
+			position: vec3.fromValues(this.targetCenter[0], this.targetCenter[1] + distance * 0.35, this.targetCenter[2] + distance),
+			target: this.targetCenter,
+			up: vec3.fromValues(0, 1, 0),
+		})
+	}
+
 	public setStructure(structure: StructureProvider) {
 		this.structure = structure
 		this.targetCenter = vec3.fromValues(
@@ -549,6 +618,7 @@ export class ThreeStructureRenderer {
 			(this.structure.getSize()[1] ?? 0) / 2,
 			(this.structure.getSize()[2] ?? 0) / 2
 		)
+		this.setCameraTarget(this.targetCenter)
 		if (this.asyncBuild) {
 			this.chunkBuilder.setStructure(structure, { rebuild: false })
 			this.rebuildOverlay()
@@ -581,7 +651,7 @@ export class ThreeStructureRenderer {
 		return this.buildPromise ?? Promise.resolve()
 	}
 
-	public drawStructure(viewMatrix: mat4) {
+	public drawStructure(viewMatrix: mat4 = this.cameraViewMatrix) {
 		this.prepareCamera(viewMatrix)
 		this.positionSunDisc(viewMatrix)
 		this.updateSkyUniforms(viewMatrix)
@@ -609,7 +679,7 @@ export class ThreeStructureRenderer {
 		this.renderer.render(this.overlayScene, this.camera)
 	}
 
-	public drawColoredStructure(viewMatrix: mat4) {
+	public drawColoredStructure(viewMatrix: mat4 = this.cameraViewMatrix) {
 		this.prepareCamera(viewMatrix)
 		this.positionSunDisc(viewMatrix)
 		this.renderer.clear()
@@ -618,7 +688,7 @@ export class ThreeStructureRenderer {
 		this.structureScene.overrideMaterial = null
 	}
 
-	public drawGrid(viewMatrix: mat4) {
+	public drawGrid(viewMatrix: mat4 = this.cameraViewMatrix) {
 		if (!this.grid) return
 		this.prepareCamera(viewMatrix)
 		this.positionSunDisc(viewMatrix)
@@ -626,19 +696,23 @@ export class ThreeStructureRenderer {
 		this.renderer.render(this.overlayScene, this.camera)
 	}
 
-	public drawInvisibleBlocks(viewMatrix: mat4) {
+	public drawInvisibleBlocks(viewMatrix: mat4 = this.cameraViewMatrix) {
 		if (!this.useInvisibleBlocks || !this.invisibleBlocks) return
 		this.prepareCamera(viewMatrix)
 		this.setOverlayVisibility({ grid: false, invisible: true, outline: false })
 		this.renderer.render(this.overlayScene, this.camera)
 	}
 
-	public drawOutline(viewMatrix: mat4, pos: vec3) {
+	public drawOutline(viewMatrix: mat4, pos: vec3): void
+	public drawOutline(pos: vec3): void
+	public drawOutline(viewMatrixOrPos: mat4 | vec3, pos?: vec3) {
+		const viewMatrix = pos ? viewMatrixOrPos as mat4 : this.cameraViewMatrix
+		const outlinePos = pos ?? viewMatrixOrPos as vec3
 		if (!this.outline) {
 			this.outline = this.createOutline()
 			this.overlayScene.add(this.outline)
 		}
-		this.outline.position.set(pos[0], pos[1], pos[2])
+		this.outline.position.set(outlinePos[0], outlinePos[1], outlinePos[2])
 		this.prepareCamera(viewMatrix)
 		this.setOverlayVisibility({ grid: false, invisible: false, outline: true })
 		this.renderer.render(this.overlayScene, this.camera)
@@ -736,6 +810,7 @@ export class ThreeStructureRenderer {
 		this.camera.updateMatrixWorld(true)
 
 		const camPos = this.getCameraPosition(viewMatrix) ?? vec3.fromValues(0, 0, 10)
+		vec3.copy(this.cameraPosition, camPos)
 		this.camera.updateMatrixWorld(true)
 
 		if (this.drawDistance) {
@@ -1603,6 +1678,10 @@ export class ThreeStructureRenderer {
 			return null
 		}
 		return vec3.fromValues(inv[12], inv[13], inv[14])
+	}
+
+	private updateStoredViewMatrix() {
+		mat4.lookAt(this.cameraViewMatrix, this.cameraPosition, this.cameraTarget, this.cameraUp)
 	}
 
 	private applyDrawDistance(cameraPos: vec3, maxDistance: number) {

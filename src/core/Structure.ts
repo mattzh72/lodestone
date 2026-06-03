@@ -12,11 +12,129 @@ export type PlacedBlock = { pos: BlockPos, state: BlockState, nbt?: NbtCompound 
 
 export interface StructureNbtOptions {
 	dataVersion?: number
+	updateBlockStates?: boolean
 }
 
 export interface StructureNbtWriteOptions extends StructureNbtOptions {
 	name?: string
 	compression?: NbtCompressionMode
+}
+
+export interface StructureBlockStateUpdateResult {
+	updatedBlocks: number
+}
+
+const HORIZONTAL_DIRECTIONS: readonly { key: 'north' | 'east' | 'south' | 'west', offset: BlockPos }[] = [
+	{ key: 'north', offset: [0, 0, -1] },
+	{ key: 'east', offset: [1, 0, 0] },
+	{ key: 'south', offset: [0, 0, 1] },
+	{ key: 'west', offset: [-1, 0, 0] },
+]
+
+const AIR_LIKE_BLOCKS = new Set([
+	'minecraft:air',
+	'minecraft:cave_air',
+	'minecraft:void_air',
+	'minecraft:water',
+	'minecraft:lava',
+])
+
+const NON_FULL_SIDE_PATTERNS = [
+	/_banner$/,
+	/_button$/,
+	/_carpet$/,
+	/_coral$/,
+	/_coral_fan$/,
+	/_door$/,
+	/_fence$/,
+	/_fence_gate$/,
+	/_flower$/,
+	/_glass_pane$/,
+	/_hanging_sign$/,
+	/_leaves$/,
+	/_pressure_plate$/,
+	/_rail$/,
+	/_sapling$/,
+	/_sign$/,
+	/_slab$/,
+	/_stairs$/,
+	/_torch$/,
+	/_trapdoor$/,
+	/_wall$/,
+	/_wall_banner$/,
+	/_wall_hanging_sign$/,
+	/_wall_sign$/,
+	/_wall_torch$/,
+	/_wool_carpet$/,
+	/^attached_/,
+	/^potted_/,
+	/amethyst_cluster$/,
+	/azalea$/,
+	/bamboo$/,
+	/bell$/,
+	/big_dripleaf$/,
+	/brewing_stand$/,
+	/cake$/,
+	/chain$/,
+	/chest$/,
+	/cocoa$/,
+	/comparator$/,
+	/conduit$/,
+	/dead_bush$/,
+	/decorated_pot$/,
+	/end_rod$/,
+	/fern$/,
+	/grass$/,
+	/grindstone$/,
+	/kelp$/,
+	/ladder$/,
+	/lantern$/,
+	/lever$/,
+	/lightning_rod$/,
+	/mangrove_roots$/,
+	/mushroom$/,
+	/pane$/,
+	/repeater$/,
+	/scaffolding$/,
+	/seagrass$/,
+	/skull$/,
+	/soul_lantern$/,
+	/sugar_cane$/,
+	/turtle_egg$/,
+	/twisting_vines$/,
+	/vine$/,
+	/weeping_vines$/,
+]
+
+function getBlockPath(name: string) {
+	return name.includes(':') ? name.split(':')[1] : name
+}
+
+function isPaneLike(name: string) {
+	const path = getBlockPath(name)
+	return path === 'iron_bars' || path.endsWith('glass_pane')
+}
+
+function isFenceLike(name: string) {
+	const path = getBlockPath(name)
+	return path === 'nether_brick_fence' || (path.endsWith('_fence') && !path.endsWith('_fence_gate'))
+}
+
+function hasHorizontalConnectionStates(name: string) {
+	return isPaneLike(name) || isFenceLike(name)
+}
+
+function isFullSideBlock(name: string) {
+	if (!name || AIR_LIKE_BLOCKS.has(name)) return false
+	const path = getBlockPath(name)
+	return !NON_FULL_SIDE_PATTERNS.some(pattern => pattern.test(path))
+}
+
+function shouldSetHorizontalConnection(sourceName: string, neighborName: string) {
+	if (!neighborName || AIR_LIKE_BLOCKS.has(neighborName)) return false
+	if (isPaneLike(sourceName)) return isPaneLike(neighborName) || isFullSideBlock(neighborName)
+	if (isFenceLike(sourceName)) return isFenceLike(neighborName) || isFullSideBlock(neighborName)
+	return false
 }
 
 export class Structure implements StructureProvider {
@@ -91,6 +209,44 @@ export class Structure implements StructureProvider {
 		return block ?? null
 	}
 
+	public clone() {
+		return new Structure(
+			BlockPos.create(this.size[0], this.size[1], this.size[2]),
+			this.palette.map(state => new BlockState(state.getName(), { ...state.getProperties() })),
+			this.blocks.map(block => ({
+				pos: BlockPos.create(block.pos[0], block.pos[1], block.pos[2]),
+				state: block.state,
+				nbt: block.nbt,
+			}))
+		)
+	}
+
+	public updateBlockStates(): StructureBlockStateUpdateResult {
+		const updates: { pos: BlockPos, name: string, properties: Record<string, string>, nbt?: NbtCompound }[] = []
+
+		for (const block of this.getBlocks()) {
+			const name = block.state.getName().toString()
+			if (!hasHorizontalConnectionStates(name)) continue
+			const properties = { ...block.state.getProperties() }
+			for (const dir of HORIZONTAL_DIRECTIONS) {
+				const neighbor = this.getBlock(BlockPos.add(block.pos, dir.offset))
+				const neighborName = neighbor?.state.getName().toString() ?? ''
+				properties[dir.key] = shouldSetHorizontalConnection(name, neighborName) ? 'true' : 'false'
+			}
+			if (properties.waterlogged === undefined) {
+				properties.waterlogged = 'false'
+			}
+			if (new BlockState(name, properties).equals(block.state)) continue
+			updates.push({ pos: block.pos, name, properties, nbt: block.nbt })
+		}
+
+		for (const update of updates) {
+			this.addBlock(update.pos, update.name, update.properties, update.nbt)
+		}
+
+		return { updatedBlocks: updates.length }
+	}
+
 	private toPlacedBlock(block: StoredBlock): PlacedBlock {
 		const state = this.palette[block.state]
 		if (!state) {
@@ -130,10 +286,14 @@ export class Structure implements StructureProvider {
 	}
 
 	public toNbt(options: StructureNbtOptions = {}) {
+		const source = options.updateBlockStates ? this.clone() : this
+		if (options.updateBlockStates) {
+			source.updateBlockStates()
+		}
 		const palette: BlockState[] = []
 		const paletteIndex = new Map<string, number>()
-		const blocks = this.blocks.map(storedBlock => {
-			const block = this.toPlacedBlock(storedBlock)
+		const blocks = source.blocks.map(storedBlock => {
+			const block = source.toPlacedBlock(storedBlock)
 			const key = block.state.toString()
 			let state = paletteIndex.get(key)
 			if (state === undefined) {

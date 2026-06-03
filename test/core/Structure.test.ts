@@ -117,6 +117,68 @@ describe('Structure', () => {
 		expect(Structure.fromNbt(nbt)).toEqual(structure)
 	})
 
+	it('updateBlockStates sets pane connections from neighboring panes and solid blocks', () => {
+		const structure = new Structure([5, 1, 3])
+			.addBlock([0, 0, 1], 'minecraft:stone')
+			.addBlock([1, 0, 1], 'minecraft:glass_pane')
+			.addBlock([2, 0, 1], 'minecraft:glass_pane')
+			.addBlock([3, 0, 1], 'minecraft:glass_pane')
+			.addBlock([4, 0, 1], 'minecraft:stone')
+
+		const result = structure.updateBlockStates()
+
+		expect(result.updatedBlocks).toEqual(3)
+		expect(structure.getBlock([1, 0, 1])?.state.toString()).toEqual('minecraft:glass_pane[east=true,north=false,south=false,waterlogged=false,west=true]')
+		expect(structure.getBlock([2, 0, 1])?.state.toString()).toEqual('minecraft:glass_pane[east=true,north=false,south=false,waterlogged=false,west=true]')
+		expect(structure.getBlock([3, 0, 1])?.state.toString()).toEqual('minecraft:glass_pane[east=true,north=false,south=false,waterlogged=false,west=true]')
+		expect(structure.updateBlockStates().updatedBlocks).toEqual(0)
+	})
+
+	it('updateBlockStates keeps pane and fence rules separate', () => {
+		const structure = new Structure([3, 1, 3])
+			.addBlock([0, 0, 0], 'minecraft:oak_fence')
+			.addBlock([1, 0, 0], 'minecraft:oak_fence')
+			.addBlock([2, 0, 0], 'minecraft:glass_pane')
+			.addBlock([0, 0, 2], 'minecraft:glass_pane')
+			.addBlock([1, 0, 2], 'minecraft:stone')
+			.addBlock([2, 0, 2], 'minecraft:glass_pane')
+
+		const result = structure.updateBlockStates()
+
+		expect(result.updatedBlocks).toEqual(5)
+		expect(structure.getBlock([0, 0, 0])?.state.toString()).toEqual('minecraft:oak_fence[east=true,north=false,south=false,waterlogged=false,west=false]')
+		expect(structure.getBlock([1, 0, 0])?.state.toString()).toEqual('minecraft:oak_fence[east=false,north=false,south=false,waterlogged=false,west=true]')
+		expect(structure.getBlock([2, 0, 0])?.state.toString()).toEqual('minecraft:glass_pane[east=false,north=false,south=false,waterlogged=false,west=false]')
+		expect(structure.getBlock([0, 0, 2])?.state.toString()).toEqual('minecraft:glass_pane[east=true,north=false,south=false,waterlogged=false,west=false]')
+		expect(structure.getBlock([2, 0, 2])?.state.toString()).toEqual('minecraft:glass_pane[east=false,north=false,south=false,waterlogged=false,west=true]')
+		expect(structure.updateBlockStates().updatedBlocks).toEqual(0)
+	})
+
+	it('toNbt updateBlockStates writes connected panes without mutating source structure', () => {
+		const structure = new Structure([3, 1, 1])
+			.addBlock([0, 0, 0], 'minecraft:stone')
+			.addBlock([1, 0, 0], 'minecraft:glass_pane')
+			.addBlock([2, 0, 0], 'minecraft:stone')
+
+		const nbt = structure.toNbt({ updateBlockStates: true })
+		const connected = Structure.fromNbt(nbt)
+
+		expect(connected.getBlock([1, 0, 0])?.state.toString()).toEqual('minecraft:glass_pane[east=true,north=false,south=false,waterlogged=false,west=true]')
+		expect(structure.getBlock([1, 0, 0])?.state.toString()).toEqual('minecraft:glass_pane')
+	})
+
+	it('toNbt leaves panes untouched by default', () => {
+		const structure = new Structure([3, 1, 1])
+			.addBlock([0, 0, 0], 'minecraft:stone')
+			.addBlock([1, 0, 0], 'minecraft:glass_pane')
+			.addBlock([2, 0, 0], 'minecraft:stone')
+
+		const nbt = structure.toNbt()
+		const plain = Structure.fromNbt(nbt)
+
+		expect(plain.getBlock([1, 0, 0])?.state.toString()).toEqual('minecraft:glass_pane')
+	})
+
 	it('writeNbt', () => {
 		const structure = new Structure([1, 1, 1])
 			.addBlock([0, 0, 0], 'minecraft:stone')
