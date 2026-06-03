@@ -67,6 +67,7 @@ Detailed Markdown docs live in [`docs/`](docs/). Start with:
 - [`docs/nbt.md`](docs/nbt.md)
 - [`docs/rendering.md`](docs/rendering.md)
 - [`docs/resources.md`](docs/resources.md)
+- [`docs/default-pack-block-states.md`](docs/default-pack-block-states.md)
 - [`docs/supported-fields.md`](docs/supported-fields.md)
 - [`docs/unsupported.md`](docs/unsupported.md)
 

@@ -65,6 +65,8 @@
     "build": "tsc -b src --clean && tsc -b src && vite build",
     "dev": "tsc -b -w src",
     "test": "vitest -r ./test",
+    "docs:block-states": "node scripts/generate-default-pack-block-states.mjs",
+    "docs:block-states:check": "node scripts/generate-default-pack-block-states.mjs --check",
     "demo": "vite ./demo",
     "lint": "eslint . --ext .ts",
     "version": "bash scripts/version.sh",
