@@ -1,6 +1,6 @@
 # Lodestone Docs
 
-These Markdown files are the public reference docs for Lodestone. They are written to be useful both to humans and to code agents that need a local, searchable source of truth.
+These Markdown files are the public reference docs for Lodestone. They are written to be clear, searchable, and useful as a local source of truth.
 
 Use `rg` to search by class, method, field, block-state property, or unsupported behavior.
 
